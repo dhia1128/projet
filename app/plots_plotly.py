@@ -4,23 +4,28 @@ import plotly.graph_objects as go
 from fastapi.responses import HTMLResponse
 from app.database import engine
 
-# Cache simple pour éviter de recharger les données à chaque fois
-df_cache = None
-
 def get_data():
-    global df_cache
-    if df_cache is None:
-        query = """
-        SELECT 
-            date_heure, gare, voie, classe_vehicule, 
-            montant_paye, montant_net, type_paiement, 
-            statut_abonnement, type_transaction
-        FROM fact_transactions
-        WHERE montant_net > 0
-        LIMIT 150000
-        """
-        df_cache = pd.read_sql(query, engine)
-    return df_cache.copy()
+    """
+    Fetch fresh data from PostgreSQL database on every request.
+    This ensures the dashboard always displays current data.
+    """
+    query = """
+    SELECT 
+        date_heure, gare, voie, classe_vehicule, 
+        montant_paye, montant_net, type_paiement, 
+        statut_abonnement, type_transaction
+    FROM fact_transactions
+    WHERE montant_net > 0
+    LIMIT 150000
+    """
+    try:
+        df = pd.read_sql(query, engine)
+        if df.empty:
+            raise ValueError("No data returned from database. Check if the table exists.")
+        return df
+    except Exception as e:
+        print(f"Database error: {e}")
+        raise
 
 # ==================== PLOTS INTERACTIFS ====================
 

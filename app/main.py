@@ -8,11 +8,24 @@ from app.plots_plotly import (
     plot_montant_by_vehicle,
     plot_daily_trend
 )
+from app.database import engine
 
 app = FastAPI(title="TollXpress Dashboard - Plotly", version="1.0")
 
 # Get the templates directory
 TEMPLATES_DIR = Path(__file__).parent / "templates"
+
+@app.get("/health")
+async def health_check():
+    """
+    Check if the database connection is working.
+    """
+    try:
+        with engine.connect() as conn:
+            conn.execute("SELECT 1")
+        return {"status": "healthy", "database": "connected"}
+    except Exception as e:
+        return {"status": "unhealthy", "database": f"disconnected - {str(e)}", "error": str(e)}
 
 @app.get("/home", response_class=HTMLResponse)
 async def home():
