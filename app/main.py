@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
+import uvicorn
+
 from pathlib import Path
 from app.plots_plotly import (
     plot_transactions_by_payment,
@@ -61,7 +63,6 @@ def dashboard():
     return HTMLResponse(html_content)
 
 if __name__ == "__main__":
-    import uvicorn
     uvicorn.run(app, host="127.0.0.1", port=8000)
     
     
