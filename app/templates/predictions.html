@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LSTM Vehicle Count Predictions</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 30px;
+        }
+        
+        header {
+            margin-bottom: 30px;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 20px;
+        }
+        
+        h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .info-item {
+            padding: 15px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .info-label {
+            font-size: 12px;
+            color: #999;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .info-value {
+            font-size: 18px;
+            color: #333;
+            font-weight: bold;
+        }
+        
+        .chart-container {
+            margin: 30px 0;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            background: #fafafa;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        select {
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+        
+        select:hover {
+            border-color: #667eea;
+        }
+        
+        button {
+            padding: 10px 25px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background: #764ba2;
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .legend {
+            display: flex;
+            gap: 30px;
+            justify-content: center;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 2px;
+        }
+        
+        .historical {
+            background: #1f77b4;
+        }
+        
+        .prediction {
+            background: #ff7f0e;
+            position: relative;
+        }
+        
+        .prediction::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 2px;
+            background: #ff7f0e;
+            top: 50%;
+            transform: translateY(-50%);
+            opacity: 0.5;
+        }
+        
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+            text-align: center;
+            color: #999;
+            font-size: 12px;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s;
+        }
+        
+        a:hover {
+            color: #764ba2;
+        }
+        
+        .model-badge {
+            display: inline-block;
+            background: #e8f0fe;
+            color: #1967d2;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error-message {
+            padding: 20px;
+            background: #fee;
+            border: 1px solid #fcc;
+            border-radius: 6px;
+            color: #c33;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>
+                🚗 Vehicle Count Forecast
+                <span class="model-badge">LSTM Model</span>
+            </h1>
+            <p class="subtitle">AI-powered hourly vehicle predictions for TollXpress</p>
+        </header>
+        
+        <div class="controls">
+            <label for="hours">Forecast Horizon:</label>
+            <select id="hours" onchange="changeForecast()">
+                <option value="12">12 Hours</option>
+                <option value="24" selected>24 Hours</option>
+                <option value="48">48 Hours</option>
+                <option value="72">72 Hours</option>
+                <option value="168">1 Week</option>
+            </select>
+            <button onclick="refreshPredictions()" id="refreshBtn">🔄 Refresh</button>
+        </div>
+        
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color historical"></div>
+                <span>Historical Data</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color prediction"></div>
+                <span>Predictions</span>
+            </div>
+        </div>
+        
+        <div id="loading" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Loading predictions...</p>
+        </div>
+        
+        <div id="error" class="error-message" style="display: none;"></div>
+        
+        <div id="content" style="display: none;">
+            <div class="info-grid" id="infoGrid"></div>
+            
+            <div class="chart-container">
+                <div id="predictionChart"></div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <div class="nav-links">
+                <a href="/home">← Home</a>
+                <a href="/dashboard">Dashboard</a>
+                <a href="#" onclick="downloadJSON()">📥 Download JSON</a>
+            </div>
+            <p style="margin-top: 15px;">Last updated: <strong id="updateTime"></strong></p>
+        </div>
+    </div>
+    
+    <script>
+        let currentData = null;
+        
+        // Get forecast hours from URL parameter or default to 24
+        function getHoursFromURL() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('hours_ahead') || 24;
+        }
+        
+        // Initialize on page load
+        window.addEventListener('load', function() {
+            const hours = getHoursFromURL();
+            document.getElementById('hours').value = hours;
+            fetchPredictions(hours);
+        });
+        
+        async function fetchPredictions(hoursAhead) {
+            const loadingDiv = document.getElementById('loading');
+            const errorDiv = document.getElementById('error');
+            const contentDiv = document.getElementById('content');
+            const refreshBtn = document.getElementById('refreshBtn');
+            
+            // Show loading state
+            loadingDiv.style.display = 'block';
+            contentDiv.style.display = 'none';
+            errorDiv.style.display = 'none';
+            refreshBtn.disabled = true;
+            
+            try {
+                const response = await fetch(`/predictions/api?hours_ahead=${hoursAhead}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                currentData = data;
+                displayPredictions(data);
+                loadingDiv.style.display = 'none';
+                contentDiv.style.display = 'block';
+                
+            } catch (error) {
+                console.error('Error:', error);
+                errorDiv.innerHTML = `❌ Error: ${error.message}`;
+                errorDiv.style.display = 'block';
+                loadingDiv.style.display = 'none';
+            } finally {
+                refreshBtn.disabled = false;
+            }
+        }
+        
+        function displayPredictions(data) {
+            // Update info grid
+            const infoGrid = document.getElementById('infoGrid');
+            infoGrid.innerHTML = `
+                <div class="info-item">
+                    <div class="info-label">📊 Model Type</div>
+                    <div class="info-value">${data.model_info.model_type}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">🎯 Forecast Method</div>
+                    <div class="info-value">${data.forecast_method || 'N/A'}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">📍 Data Source</div>
+                    <div class="info-value">${data.data_source || 'Database'}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">⏱️ Lookback Window</div>
+                    <div class="info-value">${data.model_info.lookback_hours} Hours</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">📈 Metric</div>
+                    <div class="info-value">${data.model_info.metric}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">🔮 Forecast Period</div>
+                    <div class="info-value">${data.model_info.forecast_hours} Hours</div>
+                </div>
+            `;
+            
+            // Create chart
+            createChart(data);
+            
+            // Update timestamp
+            const now = new Date();
+            document.getElementById('updateTime').textContent = now.toLocaleString();
+        }
+        
+        function createChart(data) {
+            const historicalTrace = {
+                x: data.historical.dates,
+                y: data.historical.values,
+                mode: 'lines',
+                name: 'Historical Data',
+                line: {color: '#1f77b4', width: 2},
+                hovertemplate: '<b>Historical</b><br>Time: %{x}<br>Vehicles: %{y}<extra></extra>'
+            };
+            
+            const predictionTrace = {
+                x: data.predictions.dates,
+                y: data.predictions.values,
+                mode: 'lines+markers',
+                name: 'Predictions',
+                line: {color: '#ff7f0e', width: 2, dash: 'dash'},
+                marker: {size: 6},
+                hovertemplate: '<b>Prediction</b><br>Time: %{x}<br>Vehicles: %{y}<extra></extra>'
+            };
+            
+            const layout = {
+                title: `Vehicle Count Predictions (Next ${data.model_info.forecast_hours} Hours)`,
+                xaxis: {title: 'Time'},
+                yaxis: {title: 'Number of Vehicles'},
+                height: 600,
+                template: 'plotly_white',
+                hovermode: 'x unified',
+                margin: {l: 50, r: 50, t: 80, b: 50}
+            };
+            
+            Plotly.newPlot('predictionChart', [historicalTrace, predictionTrace], layout, {responsive: true});
+        }
+        
+        function changeForecast() {
+            const hours = document.getElementById('hours').value;
+            window.history.pushState({}, '', `?hours_ahead=${hours}`);
+            fetchPredictions(hours);
+        }
+        
+        function refreshPredictions() {
+            const hours = document.getElementById('hours').value;
+            fetchPredictions(hours);
+        }
+        
+        function downloadJSON() {
+            if (!currentData) {
+                alert('No data available to download');
+                return;
+            }
+            
+            const dataStr = JSON.stringify(currentData, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `predictions_${new Date().toISOString().slice(0, 10)}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
