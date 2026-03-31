@@ -26,11 +26,11 @@ class LSTMPredictor:
         try:
             if MODEL_PATH.exists():
                 self.model = load_model(MODEL_PATH)
-                print(f"✓ Model loaded successfully from {MODEL_PATH}")
+                print(f" Model loaded successfully from {MODEL_PATH}")
             else:
                 raise FileNotFoundError(f"Model not found at {MODEL_PATH}")
         except Exception as e:
-            print(f"✗ Error loading model: {str(e)}")
+            print(f" Error loading model: {str(e)}")
             self.model = None
     
     def prepare_sequence(self, data: np.ndarray, lookback: int = 24):
@@ -62,7 +62,7 @@ class LSTMPredictor:
             
             for _ in range(steps_ahead):
                 # Reshape for LSTM: (samples, timesteps, features)
-                X = current_seq[-24:].reshape(1, 24, 1)
+                X = current_seq[-24:].reshape(1, 24, 23)
                 
                 # Predict next value
                 next_pred = self.model.predict(X, verbose=0)
@@ -74,7 +74,7 @@ class LSTMPredictor:
             return np.array(predictions)
         
         except Exception as e:
-            print(f"⚠️  LSTM prediction failed: {str(e)}")
+            print(f"  LSTM prediction failed: {str(e)}")
             print("Falling back to exponential smoothing...")
             return None
 
@@ -213,7 +213,7 @@ def generate_predictions(engine, hours_ahead: int = 24):
                     print("✓ LSTM predictions successful")
             
             except Exception as e:
-                print(f"⚠️  LSTM prediction error: {str(e)}")
+                print(f"  LSTM prediction error: {str(e)}")
                 predictions = None
         
         # Fallback: Use exponential smoothing if LSTM fails

@@ -89,7 +89,7 @@ async def predictions_dashboard(hours_ahead: int = Query(24, ge=1, le=168)):
         return HTMLResponse("""
         <html>
         <body style="font-family: Arial; padding: 20px;">
-            <h1>❌ Error</h1>
+            <h1> Error</h1>
             <p>predictions.html template not found</p>
             <p><a href="/home">← Back to Home</a></p>
         </body>

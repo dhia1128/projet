@@ -14,7 +14,7 @@
         
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #667eea 0%, #83699d 100%);
             min-height: 100vh;
             padding: 20px;
         }
@@ -242,7 +242,7 @@
     <div class="container">
         <header>
             <h1>
-                🚗 Vehicle Count Forecast
+                 Vehicle Count Forecast
                 <span class="model-badge">LSTM Model</span>
             </h1>
             <p class="subtitle">AI-powered hourly vehicle predictions for TollXpress</p>
@@ -290,7 +290,7 @@
             <div class="nav-links">
                 <a href="/home">← Home</a>
                 <a href="/dashboard">Dashboard</a>
-                <a href="#" onclick="downloadJSON()">📥 Download JSON</a>
+                <a href="#" onclick="downloadJSON()"> Download JSON</a>
             </div>
             <p style="margin-top: 15px;">Last updated: <strong id="updateTime"></strong></p>
         </div>
@@ -352,27 +352,27 @@
             const infoGrid = document.getElementById('infoGrid');
             infoGrid.innerHTML = `
                 <div class="info-item">
-                    <div class="info-label">📊 Model Type</div>
+                    <div class="info-label"> Model Type</div>
                     <div class="info-value">${data.model_info.model_type}</div>
                 </div>
                 <div class="info-item">
-                    <div class="info-label">🎯 Forecast Method</div>
+                    <div class="info-label"> Forecast Method</div>
                     <div class="info-value">${data.forecast_method || 'N/A'}</div>
                 </div>
                 <div class="info-item">
-                    <div class="info-label">📍 Data Source</div>
+                    <div class="info-label"> Data Source</div>
                     <div class="info-value">${data.data_source || 'Database'}</div>
                 </div>
                 <div class="info-item">
-                    <div class="info-label">⏱️ Lookback Window</div>
+                    <div class="info-label"> Lookback Window</div>
                     <div class="info-value">${data.model_info.lookback_hours} Hours</div>
                 </div>
                 <div class="info-item">
-                    <div class="info-label">📈 Metric</div>
+                    <div class="info-label"> Metric</div>
                     <div class="info-value">${data.model_info.metric}</div>
                 </div>
                 <div class="info-item">
-                    <div class="info-label">🔮 Forecast Period</div>
+                    <div class="info-label"> Forecast Period</div>
                     <div class="info-value">${data.model_info.forecast_hours} Hours</div>
                 </div>
             `;
