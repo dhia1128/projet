@@ -23,58 +23,51 @@ model = Prophet(seasonality_mode="multiplicative",
 model.fit(agg)
 f_passages = model.predict(model.make_future_dataframe(periods=30))
 
+future    = model.make_future_dataframe(periods=30, freq="h")  # ← FIX
+forecast  = model.predict(future)
+ 
+# séparer historique et future
+hist_fc   = forecast[forecast["ds"] <= agg["ds"].max()]
+future_fc = forecast[forecast["ds"] >  agg["ds"].max()]
 
+ 
 def visualise():
-    """Generate interactive forecast plot - Plotly only."""
+    """Plot simple forecast uniquement (pour Flask route /plot/forecast)"""
     fig = go.Figure()
-    
-    # Add actual data
+ 
     fig.add_trace(go.Scatter(
         x=agg["ds"], y=agg["y"],
-        mode='lines',
-        name='Réel',
-        line=dict(color='#0d6efd', width=2)
+        mode="lines", name="Réel",
+        line=dict(color="#2563EB", width=1.2), opacity=0.6,
     ))
-    
-    # Add forecast
     fig.add_trace(go.Scatter(
-        x=f_passages["ds"], y=f_passages["yhat"],
-        mode='lines',
-        name='Prédit',
-        line=dict(color='#dc3545', width=2, dash='dash')
+        x=future_fc["ds"], y=future_fc["yhat"],
+        mode="lines+markers", name="Prévision 30 jours",
+        line=dict(color="#DC2626", width=2.5),
+        marker=dict(size=6),
     ))
-    
-    # Add confidence interval
     fig.add_trace(go.Scatter(
-        x=f_passages["ds"],
-        y=f_passages["yhat_upper"],
-        fill=None,
-        mode='lines',
-        line_color='rgba(0,0,0,0)',
-        showlegend=False
+        x=pd.concat([future_fc["ds"], future_fc["ds"][::-1]]),
+        y=pd.concat([future_fc["yhat_upper"], future_fc["yhat_lower"][::-1]]),
+        fill="toself", fillcolor="rgba(220,38,38,0.15)",
+        line=dict(color="rgba(0,0,0,0)"), name="IC 95%",
     ))
-    
-    fig.add_trace(go.Scatter(
-        x=f_passages["ds"],
-        y=f_passages["yhat_lower"],
-        fill='tonexty',
-        mode='lines',
-        line_color='rgba(0,0,0,0)',
-        name='IC 95%',
-        fillcolor='rgba(220, 53, 69, 0.2)'
-    ))
-    
-    fig.update_layout(
-        title='Total Passages - Prévisions avec Prophet',
-        xaxis_title='Date',
-        yaxis_title='Nombre de Passages',
-        hovermode='x unified',
-        template='plotly_white',
-        autosize=True,
-        margin=dict(l=60, r=40, t=80, b=60)
+    fig.add_vline(x=agg["ds"].max(),
+                  line=dict(color="gray", dash="dash", width=1))
+    fig.add_annotation(
+        x=agg["ds"].max(), y=agg["y"].max(),
+        text="  Début prévision", showarrow=False,
+        font=dict(color="gray", size=11),
     )
-    
+    fig.update_layout(
+        title="Prévision Prophet — 30 prochains jours (journalier)",
+        xaxis_title="Date", yaxis_title="Nb véhicules/jour",
+        xaxis_rangeslider_visible=True,
+        hovermode="x unified", template="plotly_white",
+        height=500, margin=dict(t=70, b=50),
+    )
     return fig.to_html(full_html=False)
+    
      
 
 
