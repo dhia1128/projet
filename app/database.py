@@ -18,6 +18,10 @@ DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_POR
 engine = create_engine(DATABASE_URL, echo=False)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+def get_engine():
+    """Return the SQLAlchemy engine instance."""
+    return engine
+
 def get_db():
     db = SessionLocal()
     try:
