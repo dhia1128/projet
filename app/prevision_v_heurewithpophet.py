@@ -21,9 +21,9 @@ model = Prophet(seasonality_mode="multiplicative",
                      yearly_seasonality=True,
                      interval_width=0.95)
 model.fit(agg)
-f_passages = model.predict(model.make_future_dataframe(periods=30))
+f_passages = model.predict(model.make_future_dataframe(periods=168))  # 168 hours = 7 days
 
-future    = model.make_future_dataframe(periods=30, freq="h")  # ← FIX
+future    = model.make_future_dataframe(periods=168, freq="h")  # 168 hours = 7 days
 forecast  = model.predict(future)
  
 # séparer historique et future
@@ -60,11 +60,11 @@ def visualise():
         font=dict(color="gray", size=11),
     )
     fig.update_layout(
-        title="Prévision Prophet — 30 prochains jours (journalier)",
-        xaxis_title="Date", yaxis_title="Nb véhicules/jour",
+        title="Prévision Prophet — 7 prochains jours (horaire)",
+        xaxis_title="Date", yaxis_title="Nb véhicules/heure",
         xaxis_rangeslider_visible=True,
         hovermode="x unified", template="plotly_white",
-        height=500, margin=dict(t=70, b=50),
+        height=600, margin=dict(t=80, b=50),
     )
     return fig.to_html(full_html=False)
     

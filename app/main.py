@@ -12,6 +12,7 @@ from app.plots_plotly import (
 )
 from app.database import get_engine
 from app.prevision_v_heurewithpophet import visualise
+from app.prophet_forecasts import plot_classe, plot_gare, plot_global
 
 
 app = FastAPI(title="TollXpress Dashboard - Plotly", version="1.0")
@@ -73,6 +74,17 @@ async def prevision_plot():
     return visualise()
 
 
+@app.get("/plot/classe", response_class=HTMLResponse)
+def route_classe():  
+    return plot_classe()
+
+@app.get("/plot/gare", response_class=HTMLResponse)
+def route_gare():
+    return plot_gare()
+
+@app.get("/plot/global", response_class=HTMLResponse)
+def route_global():
+    return plot_global()
     
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=8000)

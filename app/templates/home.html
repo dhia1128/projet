@@ -22,9 +22,49 @@
             font-family: 'Segoe UI', system-ui, sans-serif;
         }
         
+        .navbar {
+            transition: all 0.3s ease;
+        }
+        
         .navbar-brand {
             font-weight: 700;
             font-size: 1.6rem;
+            transition: all 0.3s ease;
+        }
+        
+        .navbar-brand:hover {
+            transform: scale(1.05);
+        }
+        
+        .nav-link {
+            transition: all 0.3s ease;
+            font-weight: 500;
+            margin: 0 5px;
+        }
+        
+        .nav-link:hover {
+            color: var(--primary-color) !important;
+            transform: translateY(-2px);
+        }
+        
+        .dropdown-menu-dark {
+            background-color: #1a1a1a;
+            border: 1px solid #404040;
+        }
+        
+        .dropdown-item {
+            transition: all 0.2s ease;
+            color: #ffffff;
+        }
+        
+        .dropdown-item:hover {
+            background-color: var(--primary-color);
+            color: white;
+            padding-left: 2rem;
+        }
+        
+        .dropdown-divider {
+            border-color: #404040;
         }
         
         .hero-section {
@@ -77,13 +117,79 @@
 <body>
 
     <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
-        <div class="container">
-            <a class="navbar-brand d-flex align-items-center" href="#">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm sticky-top">
+        <div class="container-fluid">
+            <a class="navbar-brand d-flex align-items-center" href="/home">
                 <i class="bi bi-speedometer2 me-2"></i> TollXpress
             </a>
-            <span class="navbar-text text-light fs-5">Dashboard Interactif</span>
-            <a href="/prevision" class="btn btn-outline-light">Voir les prédictions</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <!-- Home -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="/home">
+                            <i class="bi bi-house me-1"></i> Accueil
+                        </a>
+                    </li>
+                    
+                    <!-- Analyses Dropdown -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="analysesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-bar-chart me-1"></i> Analyses
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="analysesDropdown">
+                            <li><a class="dropdown-item" href="/plot/paiement" target="_blank">
+                                <i class="bi bi-credit-card me-2"></i> Transactions par Paiement
+                            </a></li>
+                            <li><a class="dropdown-item" href="/plot/montant" target="_blank">
+                                <i class="bi bi-currency-exchange me-2"></i> Distribution des Montants
+                            </a></li>
+                            <li><a class="dropdown-item" href="/plot/ca_gare" target="_blank">
+                                <i class="bi bi-building me-2"></i> Top 10 Gares par CA
+                            </a></li>
+                            <li><a class="dropdown-item" href="/plot/vehicule" target="_blank">
+                                <i class="bi bi-truck me-2"></i> Montants par Véhicule
+                            </a></li>
+                            <li><a class="dropdown-item" href="/plot/daily" target="_blank">
+                                <i class="bi bi-calendar3 me-2"></i> Évolution Journalière
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="/plot/classe" target="_blank">
+                                <i class="bi bi-tag me-2"></i> Analyse par Classe
+                            </a></li>
+                            <li><a class="dropdown-item" href="/plot/gare" target="_blank">
+                                <i class="bi bi-geo-alt me-2"></i> Analyse par Gare
+                            </a></li>
+                            <li><a class="dropdown-item" href="/plot/global" target="_blank">
+                                <i class="bi bi-pie-chart me-2"></i> Vue Globale
+                            </a></li>
+                        </ul>
+                    </li>
+                    
+                    <!-- Prédictions -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="/prevision" target="_blank">
+                            <i class="bi bi-graph-up me-1"></i> Prédictions
+                        </a>
+                    </li>
+                    
+                    <!-- Dashboard -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="/dashboard" target="_blank">
+                            <i class="bi bi-speedometer2 me-1"></i> Dashboard
+                        </a>
+                    </li>
+                    
+                    <!-- Health Status -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="/health" target="_blank">
+                            <i class="bi bi-heart-pulse me-1"></i> Santé
+                        </a>
+                    </li>
+                </ul>
+            </div>
         </div>
     </nav>
 
