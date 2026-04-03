@@ -16,7 +16,6 @@ def get_data():
         statut_abonnement, type_transaction
     FROM fact_transactions
     WHERE montant_net > 0
-    LIMIT 150000
     """
     try:
         df = pd.read_sql(query, engine)

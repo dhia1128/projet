@@ -379,42 +379,5 @@ def plot_global() -> str:
     return fig.to_html(full_html=False)
 
 
-# ── Helper couleur hex → rgb ───────────────────────────────────────────────
-def _hex_to_rgb(hex_color: str) -> tuple:
-    h = hex_color.lstrip("#")
-    return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
 
 
-# ════════════════════════════════════════════════════════════════════════════
-# INTEGRATION FLASK — exemple d'utilisation
-# ════════════════════════════════════════════════════════════════════════════
-"""
-from flask import Flask
-from prophet_forecasts import plot_classe, plot_gare, plot_global
-
-app = Flask(__name__)
-
-@app.route("/plot/classe")   
-def route_classe():  return plot_classe()
-
-@app.route("/plot/gare")     
-def route_gare():    return plot_gare()
-
-@app.route("/plot/global")   
-def route_global():  return plot_global()
-"""
-
-# ── Lancement direct — ouvre les 3 plots dans le navigateur ───────────────
-if __name__ == "__main__":
-    import webbrowser, tempfile, os
-
-    PLOTLY_JS = "<script src='https://cdn.plot.ly/plotly-latest.min.js'></script>"
-
-    for name, fn in [("classe", plot_classe), ("gare", plot_gare), ("global", plot_global)]:
-        print(f"Génération : {name} ...")
-        html = f"<html><head>{PLOTLY_JS}</head><body>{fn()}</body></html>"
-        tmp  = tempfile.NamedTemporaryFile(delete=False, suffix=f"_{name}.html", mode="w", encoding="utf-8")
-        tmp.write(html)
-        tmp.close()
-        webbrowser.open(f"file://{tmp.name}")
-        print(f"  → {tmp.name}")

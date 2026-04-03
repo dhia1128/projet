@@ -1,14 +1,14 @@
 from fastapi import FastAPI, Query
 from fastapi.responses import HTMLResponse, JSONResponse
 import uvicorn
-
+from sqlalchemy import text
 from pathlib import Path
 from app.plots_plotly import (
     plot_transactions_by_payment,
     plot_montant_distribution,
     plot_top_gares_ca,
     plot_montant_by_vehicle,
-    plot_daily_trend
+    plot_daily_trend,get_data
 )
 from app.database import get_engine
 from app.prevision_v_heurewithpophet import visualise
@@ -30,7 +30,7 @@ async def health_check():
     try:
         engine = get_engine()
         with engine.connect() as conn:
-            conn.execute("SELECT 1")
+            conn.execute(text("SELECT 1"))
         return {"status": "healthy", "database": "connected"}
     except Exception as e:
         return {"status": "unhealthy", "database": f"disconnected - {str(e)}", "error": str(e)}
@@ -40,6 +40,21 @@ async def home():
     with open(TEMPLATES_DIR / "home.html", "r", encoding="utf-8") as f:
         html_content = f.read()
     return HTMLResponse(html_content)
+@app.get("/info", response_class=JSONResponse)
+async def info():
+    df=get_data()
+    return JSONResponse(content={
+        "total_transactions": len(df),
+        "date_range": (df['date_heure'].min(), df['date_heure'].max()),
+        "unique_gares": df['gare'].nunique(),
+        "unique_voies": df['voie'].nunique(),
+        "unique_classes": df['classe_vehicule'].nunique(),
+        "unique_paiements": df['type_paiement'].nunique(),
+        "unique_statuts": df['statut_abonnement'].nunique(),
+        "unique_types": df['type_transaction'].nunique()
+    })
+    
+
 
 
 @app.get("/plot/paiement", response_class=HTMLResponse)
