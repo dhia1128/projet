@@ -13,6 +13,7 @@ from app.plots_plotly import (
 from app.database import get_engine
 from app.prevision_v_heurewithpophet import visualise
 from app.prophet_forecasts import plot_classe, plot_gare, plot_global
+from app.traffic_stats_service import get_traffic_stats
 
 
 app = FastAPI(title="TollXpress Dashboard - Plotly", version="1.0")
@@ -82,6 +83,18 @@ def dashboard():
     with open(TEMPLATES_DIR / "dashboard.html", "r", encoding="utf-8") as f:
         html_content = f.read()
     return HTMLResponse(html_content)
+
+
+@app.get("/traffic/stats", response_class=HTMLResponse)
+def traffic_stats_page():
+    with open(TEMPLATES_DIR / "traffic_stats.html", "r", encoding="utf-8") as f:
+        html_content = f.read()
+    return HTMLResponse(html_content)
+
+
+@app.get("/api/traffic/stats", response_class=JSONResponse)
+def traffic_stats_data():
+    return JSONResponse(content=get_traffic_stats())
 
 
 @app.get("/prevision", response_class=HTMLResponse)

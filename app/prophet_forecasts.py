@@ -1,17 +1,22 @@
 import pandas as pd
 import numpy as np
 from prophet import Prophet
-from pathlib import Path
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from app.database import get_engine
 import warnings
 warnings.filterwarnings("ignore")
 
-# ── Chargement unique des données ─────────────────────────────────────────
-CSV_PATH = Path(__file__).parent / "donnees_synthetiques_tollxpress_benin_2023-2024.csv"
-
 def _load() -> pd.DataFrame:
-    df = pd.read_csv(CSV_PATH)
+    query = """
+    SELECT
+        date_heure AS "Date_Heure",
+        id_transaction AS "ID_transaction",
+        gare AS "Gare",
+        classe_vehicule AS "Classe_vehicule"
+    FROM fact_transactions
+    """
+    df = pd.read_sql(query, get_engine())
     df["Date_Heure"] = pd.to_datetime(df["Date_Heure"])
     return df
 

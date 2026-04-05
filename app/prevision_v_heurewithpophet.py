@@ -1,11 +1,14 @@
 import pandas as pd
 from prophet import Prophet
-from pathlib import Path
 import plotly.graph_objects as go
+from app.database import get_engine
 
 # ── Preprocessing ────────────────────────────────────────────────────────
-csv_path = Path(__file__).parent / "donnees_synthetiques_tollxpress_benin_2023-2024.csv"
-df = pd.read_csv(csv_path)
+query = """
+SELECT date_heure AS "Date_Heure", id_transaction AS "ID_transaction"
+FROM fact_transactions
+"""
+df = pd.read_sql(query, get_engine())
 df["Date_Heure"] = pd.to_datetime(df["Date_Heure"])
 
 agg = (

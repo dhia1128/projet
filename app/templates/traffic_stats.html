@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TollXpress - Statistiques Trafic</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(140deg, #eef2ff 0%, #f9fafb 45%, #ecfeff 100%);
+            font-family: "Segoe UI", system-ui, sans-serif;
+            min-height: 100vh;
+        }
+
+        .navbar-brand {
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
+
+        .hero {
+            background: linear-gradient(115deg, #0f766e, #0ea5e9);
+            color: #fff;
+            padding: 2.5rem 0;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 22px rgba(14, 165, 233, 0.25);
+        }
+
+        .stat-card {
+            border: 0;
+            border-radius: 14px;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.09);
+            transition: transform 0.25s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 1rem;
+        }
+
+        .table-wrap {
+            background: #fff;
+            border-radius: 14px;
+            padding: 1rem;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+        }
+
+        .chip {
+            background: #ecfeff;
+            border: 1px solid #a5f3fc;
+            color: #0c4a6e;
+            border-radius: 999px;
+            padding: 0.35rem 0.75rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-right: 0.35rem;
+            margin-bottom: 0.35rem;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm sticky-top">
+        <div class="container">
+            <a class="navbar-brand" href="/home"><i class="bi bi-speedometer2 me-2"></i>TollXpress</a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/home">Accueil</a>
+                <a class="nav-link" href="/dashboard">Dashboard</a>
+                <a class="nav-link active" href="/traffic/stats">Statistiques Trafic</a>
+            </div>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <div class="container">
+            <h1 class="h2 fw-bold mb-2">Statistiques de Trafic</h1>
+            <p class="mb-0">Vue consolidée des indicateurs: volumes, pics, répartitions et tendances horaires.</p>
+        </div>
+    </section>
+
+    <main class="container pb-5">
+        <div class="row g-3 mb-3" id="summaryCards"></div>
+
+        <div class="row g-3 mb-3">
+            <div class="col-lg-6">
+                <div class="table-wrap h-100">
+                    <div class="section-title"><i class="bi bi-lightning-charge me-2"></i>Indicateurs de pic</div>
+                    <div id="peakInfo" class="text-muted">Chargement...</div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="table-wrap h-100">
+                    <div class="section-title"><i class="bi bi-calendar-week me-2"></i>Période couverte</div>
+                    <div id="periodInfo" class="text-muted">Chargement...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-lg-4">
+                <div class="table-wrap">
+                    <div class="section-title"><i class="bi bi-geo-alt me-2"></i>Trafic par gare</div>
+                    <div id="gareTable"></div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="table-wrap">
+                    <div class="section-title"><i class="bi bi-truck me-2"></i>Trafic par classe</div>
+                    <div id="classeTable"></div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="table-wrap">
+                    <div class="section-title"><i class="bi bi-credit-card me-2"></i>Trafic par paiement</div>
+                    <div id="paymentTable"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3 mt-1">
+            <div class="col-lg-6">
+                <div class="table-wrap">
+                    <div class="section-title"><i class="bi bi-clock-history me-2"></i>Profil horaire</div>
+                    <div id="hourChips"></div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="table-wrap">
+                    <div class="section-title"><i class="bi bi-calendar2-week me-2"></i>Profil hebdomadaire</div>
+                    <div id="weekdayChips"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function num(v, decimals = 0) {
+            return new Intl.NumberFormat('fr-FR', {
+                minimumFractionDigits: decimals,
+                maximumFractionDigits: decimals,
+            }).format(v ?? 0);
+        }
+
+        function money(v) {
+            return `${num(v, 0)} FCFA`;
+        }
+
+        function makeRows(obj) {
+            const rows = Object.entries(obj || {});
+            if (!rows.length) return '<p class="text-muted">Aucune donnée</p>';
+
+            return `
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped align-middle mb-0">
+                        <thead><tr><th>Catégorie</th><th class="text-end">Transactions</th></tr></thead>
+                        <tbody>
+                            ${rows.map(([k, v]) => `<tr><td>${k}</td><td class="text-end fw-semibold">${num(v)}</td></tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function makeChips(obj, suffix = '') {
+            const rows = Object.entries(obj || {});
+            if (!rows.length) return '<p class="text-muted">Aucune donnée</p>';
+            return rows.map(([k, v]) => `<span class="chip">${k}: ${num(v)}${suffix}</span>`).join('');
+        }
+
+        async function loadStats() {
+            const resp = await fetch('/api/traffic/stats');
+            if (!resp.ok) throw new Error('Impossible de charger les statistiques');
+            const data = await resp.json();
+
+            const s = data.summary || {};
+            const p = data.period || {};
+            const peaks = data.peaks || {};
+            const top = data.top || {};
+            const b = data.breakdowns || {};
+
+            document.getElementById('summaryCards').innerHTML = `
+                <div class="col-md-6 col-xl-3">
+                    <div class="card stat-card"><div class="card-body">
+                        <div class="text-muted">Transactions Totales</div>
+                        <div class="stat-value">${num(s.total_transactions)}</div>
+                    </div></div>
+                </div>
+                <div class="col-md-6 col-xl-3">
+                    <div class="card stat-card"><div class="card-body">
+                        <div class="text-muted">Revenu Total</div>
+                        <div class="stat-value">${money(s.total_revenue)}</div>
+                    </div></div>
+                </div>
+                <div class="col-md-6 col-xl-3">
+                    <div class="card stat-card"><div class="card-body">
+                        <div class="text-muted">Moy. Transactions / Jour</div>
+                        <div class="stat-value">${num(s.avg_transactions_per_day, 1)}</div>
+                    </div></div>
+                </div>
+                <div class="col-md-6 col-xl-3">
+                    <div class="card stat-card"><div class="card-body">
+                        <div class="text-muted">Jours Actifs</div>
+                        <div class="stat-value">${num(s.active_days)}</div>
+                    </div></div>
+                </div>
+            `;
+
+            document.getElementById('peakInfo').innerHTML = `
+                <p class="mb-2"><strong>Jour de pic:</strong> ${peaks.day?.date || '-'} (${num(peaks.day?.transactions || 0)} transactions)</p>
+                <p class="mb-2"><strong>Heure de pic:</strong> ${peaks.hour?.hour ?? '-'}h (${num(peaks.hour?.transactions || 0)} transactions)</p>
+                <p class="mb-0"><strong>Gare principale:</strong> ${top.gare?.name || '-'} (${num(top.gare?.transactions || 0)} transactions)</p>
+            `;
+
+            document.getElementById('periodInfo').innerHTML = `
+                <p class="mb-2"><strong>Début:</strong> ${p.start || '-'}</p>
+                <p class="mb-2"><strong>Fin:</strong> ${p.end || '-'}</p>
+                <p class="mb-0"><strong>Revenu moyen / jour:</strong> ${money(s.avg_revenue_per_day || 0)}</p>
+            `;
+
+            document.getElementById('gareTable').innerHTML = makeRows(b.by_gare);
+            document.getElementById('classeTable').innerHTML = makeRows(b.by_classe);
+            document.getElementById('paymentTable').innerHTML = makeRows(b.by_payment);
+            document.getElementById('hourChips').innerHTML = makeChips(b.by_hour, ' tx');
+            document.getElementById('weekdayChips').innerHTML = makeChips(b.by_weekday, ' tx');
+        }
+
+        loadStats().catch((error) => {
+            document.getElementById('summaryCards').innerHTML = `<div class="col-12"><div class="alert alert-danger mb-0">${error.message}</div></div>`;
+        });
+    </script>
+</body>
+</html>
