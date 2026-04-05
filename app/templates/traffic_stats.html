@@ -69,6 +69,9 @@
             margin-bottom: 0.35rem;
             display: inline-block;
         }
+
+        .kpi-good { color: #065f46; }
+        .kpi-bad { color: #991b1b; }
     </style>
 </head>
 <body>
@@ -92,6 +95,8 @@
 
     <main class="container pb-5">
         <div class="row g-3 mb-3" id="summaryCards"></div>
+
+        <div class="row g-3 mb-3" id="advancedRevenueCards"></div>
 
         <div class="row g-3 mb-3">
             <div class="col-lg-6">
@@ -143,6 +148,42 @@
                 </div>
             </div>
         </div>
+
+        <div class="row g-3 mt-1">
+            <div class="col-12">
+                <div class="table-wrap">
+                    <div class="section-title"><i class="bi bi-cash-coin me-2"></i>Revenus journaliers</div>
+                    <div id="dailyRevenueTable"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3 mt-1">
+            <div class="col-lg-4">
+                <div class="table-wrap">
+                    <div class="section-title"><i class="bi bi-geo me-2"></i>Revenus par gare</div>
+                    <div id="revenueByGareTable"></div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="table-wrap">
+                    <div class="section-title"><i class="bi bi-bus-front me-2"></i>Revenus par classe véhicule</div>
+                    <div id="revenueByClasseTable"></div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="table-wrap">
+                    <div class="section-title"><i class="bi bi-wallet2 me-2"></i>Revenus abonnés vs cash</div>
+                    <div id="abonneVsCashTable"></div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="table-wrap">
+                    <div class="section-title"><i class="bi bi-credit-card-2-front me-2"></i>Revenus par type de paiement</div>
+                    <div id="revenueByPaymentTable"></div>
+                </div>
+            </div>
+        </div>
     </main>
 
     <script>
@@ -173,6 +214,23 @@
             `;
         }
 
+        function makeMoneyRows(obj, keyLabel = 'Catégorie', limit = 0) {
+            let rows = Object.entries(obj || {});
+            if (limit > 0) rows = rows.slice(0, limit);
+            if (!rows.length) return '<p class="text-muted">Aucune donnée</p>';
+
+            return `
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped align-middle mb-0">
+                        <thead><tr><th>${keyLabel}</th><th class="text-end">Revenu</th></tr></thead>
+                        <tbody>
+                            ${rows.map(([k, v]) => `<tr><td>${k}</td><td class="text-end fw-semibold">${money(v)}</td></tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
         function makeChips(obj, suffix = '') {
             const rows = Object.entries(obj || {});
             if (!rows.length) return '<p class="text-muted">Aucune donnée</p>';
@@ -189,6 +247,14 @@
             const peaks = data.peaks || {};
             const top = data.top || {};
             const b = data.breakdowns || {};
+            const rev = data.revenue || {};
+
+            const g7 = Number(s.growth_last_7_days_pct || 0);
+            const g30 = Number(s.growth_last_30_days_pct || 0);
+            const g7Class = g7 >= 0 ? 'kpi-good' : 'kpi-bad';
+            const g30Class = g30 >= 0 ? 'kpi-good' : 'kpi-bad';
+            const g7Arrow = g7 >= 0 ? 'bi-arrow-up-right' : 'bi-arrow-down-right';
+            const g30Arrow = g30 >= 0 ? 'bi-arrow-up-right' : 'bi-arrow-down-right';
 
             document.getElementById('summaryCards').innerHTML = `
                 <div class="col-md-6 col-xl-3">
@@ -217,6 +283,33 @@
                 </div>
             `;
 
+            document.getElementById('advancedRevenueCards').innerHTML = `
+                <div class="col-md-6 col-xl-3">
+                    <div class="card stat-card"><div class="card-body">
+                        <div class="text-muted">Ticket Moyen</div>
+                        <div class="stat-value">${money(s.avg_ticket)}</div>
+                    </div></div>
+                </div>
+                <div class="col-md-6 col-xl-3">
+                    <div class="card stat-card"><div class="card-body">
+                        <div class="text-muted">Ticket Médian</div>
+                        <div class="stat-value">${money(s.median_ticket)}</div>
+                    </div></div>
+                </div>
+                <div class="col-md-6 col-xl-3">
+                    <div class="card stat-card"><div class="card-body">
+                        <div class="text-muted">Croissance Revenu (7j)</div>
+                        <div class="stat-value ${g7Class}"><i class="bi ${g7Arrow} me-1"></i>${num(g7, 1)}%</div>
+                    </div></div>
+                </div>
+                <div class="col-md-6 col-xl-3">
+                    <div class="card stat-card"><div class="card-body">
+                        <div class="text-muted">Croissance Revenu (30j)</div>
+                        <div class="stat-value ${g30Class}"><i class="bi ${g30Arrow} me-1"></i>${num(g30, 1)}%</div>
+                    </div></div>
+                </div>
+            `;
+
             document.getElementById('peakInfo').innerHTML = `
                 <p class="mb-2"><strong>Jour de pic:</strong> ${peaks.day?.date || '-'} (${num(peaks.day?.transactions || 0)} transactions)</p>
                 <p class="mb-2"><strong>Heure de pic:</strong> ${peaks.hour?.hour ?? '-'}h (${num(peaks.hour?.transactions || 0)} transactions)</p>
@@ -226,7 +319,9 @@
             document.getElementById('periodInfo').innerHTML = `
                 <p class="mb-2"><strong>Début:</strong> ${p.start || '-'}</p>
                 <p class="mb-2"><strong>Fin:</strong> ${p.end || '-'}</p>
-                <p class="mb-0"><strong>Revenu moyen / jour:</strong> ${money(s.avg_revenue_per_day || 0)}</p>
+                <p class="mb-2"><strong>Revenu moyen / jour:</strong> ${money(s.avg_revenue_per_day || 0)}</p>
+                <p class="mb-2"><strong>Meilleur jour:</strong> ${rev.best_day?.date || '-'} (${money(rev.best_day?.amount || 0)})</p>
+                <p class="mb-0"><strong>Jour le plus faible:</strong> ${rev.worst_day?.date || '-'} (${money(rev.worst_day?.amount || 0)})</p>
             `;
 
             document.getElementById('gareTable').innerHTML = makeRows(b.by_gare);
@@ -234,6 +329,12 @@
             document.getElementById('paymentTable').innerHTML = makeRows(b.by_payment);
             document.getElementById('hourChips').innerHTML = makeChips(b.by_hour, ' tx');
             document.getElementById('weekdayChips').innerHTML = makeChips(b.by_weekday, ' tx');
+
+            document.getElementById('dailyRevenueTable').innerHTML = makeMoneyRows(rev.daily, 'Jour', 31);
+            document.getElementById('revenueByGareTable').innerHTML = makeMoneyRows(rev.by_gare, 'Gare');
+            document.getElementById('revenueByClasseTable').innerHTML = makeMoneyRows(rev.by_classe, 'Classe');
+            document.getElementById('abonneVsCashTable').innerHTML = makeMoneyRows(rev.abonne_vs_cash, 'Canal');
+            document.getElementById('revenueByPaymentTable').innerHTML = makeMoneyRows(rev.by_payment, 'Paiement');
         }
 
         loadStats().catch((error) => {
