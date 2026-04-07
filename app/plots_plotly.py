@@ -4,6 +4,17 @@ import plotly.graph_objects as go
 from fastapi.responses import HTMLResponse
 from app.database import engine
 
+# Palette coherente (3 couleurs proches) pour les graphiques du dashboard
+DASHBOARD_TONES = ['#1D4ED8', '#2563EB', '#3B82F6']
+
+
+def _cycle_bar_colors(fig):
+    """Apply a 3-tone cyclic palette to bar traces for visual consistency."""
+    for trace in fig.data:
+        if getattr(trace, 'type', None) == 'bar' and getattr(trace, 'x', None) is not None:
+            n = len(trace.x)
+            trace.marker.color = [DASHBOARD_TONES[i % len(DASHBOARD_TONES)] for i in range(n)]
+
 def get_data():
     """
     Fetch fresh data from PostgreSQL database on every request.
@@ -68,9 +79,9 @@ def plot_top_gares_ca():
         orientation='h',
         title="Top 10 des Gares par Chiffre d'Affaires",
         labels={'montant_net': 'Chiffre d\'Affaires (FCFA)', 'gare': 'Gare'},
-        color='montant_net',
-        color_continuous_scale='Viridis'
+        color_discrete_sequence=DASHBOARD_TONES
     )
+    _cycle_bar_colors(fig)
     fig.update_layout(height=650)
     return fig.to_html(full_html=False)
 
@@ -129,7 +140,8 @@ def plot_monthly_revenue_by_payment():
             'mois': 'Mois',
             'montant_net': 'CA (FCFA)',
             'type_paiement': 'Type de Paiement'
-        }
+        },
+        color_discrete_sequence=DASHBOARD_TONES
     )
     fig.update_layout(height=600, xaxis_tickangle=-35)
     return fig.to_html(full_html=False)
@@ -156,9 +168,9 @@ def plot_transactions_by_hour():
             'heure': 'Heure de la Journée',
             'nombre_transactions': 'Nombre de Transactions'
         },
-        color='nombre_transactions',
-        color_continuous_scale='Blues'
+        color_discrete_sequence=DASHBOARD_TONES
     )
+    _cycle_bar_colors(fig)
     fig.update_layout(height=600, xaxis=dict(dtick=1))
     return fig.to_html(full_html=False)
 
@@ -197,9 +209,9 @@ def plot_revenue_by_weekday():
             'jour_semaine': 'Jour de Semaine',
             'montant_net': 'CA (FCFA)'
         },
-        color='montant_net',
-        color_continuous_scale='Tealgrn',
+        color_discrete_sequence=DASHBOARD_TONES,
         category_orders={'jour_semaine': day_order}
     )
+    _cycle_bar_colors(fig)
     fig.update_layout(height=600)
     return fig.to_html(full_html=False)
