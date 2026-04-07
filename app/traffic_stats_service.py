@@ -1,5 +1,5 @@
 import pandas as pd
-
+import numpy as np
 from app.database import get_engine
 
 

@@ -8,7 +8,11 @@ from app.plots_plotly import (
     plot_montant_distribution,
     plot_top_gares_ca,
     plot_montant_by_vehicle,
-    plot_daily_trend,get_data
+    plot_daily_trend,
+    plot_monthly_revenue_by_payment,
+    plot_transactions_by_hour,
+    plot_revenue_by_weekday,
+    get_data
 )
 from app.database import get_engine
 from app.prevision_v_heurewithpophet import visualise
@@ -41,22 +45,6 @@ async def home():
     with open(TEMPLATES_DIR / "home.html", "r", encoding="utf-8") as f:
         html_content = f.read()
     return HTMLResponse(html_content)
-@app.get("/info", response_class=JSONResponse)
-async def info():
-    df=get_data()
-    return JSONResponse(content={
-        "total_transactions": len(df),
-        "date_range": (df['date_heure'].min(), df['date_heure'].max()),
-        "unique_gares": df['gare'].nunique(),
-        "unique_voies": df['voie'].nunique(),
-        "unique_classes": df['classe_vehicule'].nunique(),
-        "unique_paiements": df['type_paiement'].nunique(),
-        "unique_statuts": df['statut_abonnement'].nunique(),
-        "unique_types": df['type_transaction'].nunique()
-    })
-    
-
-
 
 @app.get("/plot/paiement", response_class=HTMLResponse)
 async def paiement_plot():
@@ -77,6 +65,21 @@ async def vehicule_plot():
 @app.get("/plot/daily", response_class=HTMLResponse)
 async def daily_plot():
     return plot_daily_trend()
+
+
+@app.get("/plot/monthly_payment", response_class=HTMLResponse)
+async def monthly_payment_plot():
+    return plot_monthly_revenue_by_payment()
+
+
+@app.get("/plot/hourly_transactions", response_class=HTMLResponse)
+async def hourly_transactions_plot():
+    return plot_transactions_by_hour()
+
+
+@app.get("/plot/weekday_revenue", response_class=HTMLResponse)
+async def weekday_revenue_plot():
+    return plot_revenue_by_weekday()
 
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard():

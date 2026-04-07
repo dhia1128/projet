@@ -3,7 +3,6 @@ import pandas as pd
 from prophet import Prophet
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-
 from app.database import get_engine
 
 

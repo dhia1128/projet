@@ -93,15 +93,15 @@
     <div class="container pb-5">
         <div class="row g-4">
 
-            <!-- Montant -->
+            <!-- Transactions par Heure -->
             <div class="col-lg-6">
                 <div class="card h-100">
                     <div class="card-header d-flex align-items-center">
-                        <i class="bi bi-currency-exchange text-success fs-4 me-3"></i>
-                        <h5 class="card-title">Distribution des Montants</h5>
+                        <i class="bi bi-clock-history text-success fs-4 me-3"></i>
+                        <h5 class="card-title">Transactions par Heure</h5>
                     </div>
                     <div class="plot-container">
-                        <iframe src="/plot/montant"></iframe>
+                        <iframe src="/plot/hourly_transactions"></iframe>
                     </div>
                 </div>
             </div>
@@ -119,44 +119,34 @@
                 </div>
             </div>
 
-            <!-- Véhicule -->
+            <!-- CA par Jour de Semaine -->
             <div class="col-lg-6">
                 <div class="card h-100">
                     <div class="card-header d-flex align-items-center">
-                        <i class="bi bi-truck text-info fs-4 me-3"></i>
-                        <h5 class="card-title">Montants par Classe de Véhicule (Box Plot)</h5>
+                        <i class="bi bi-calendar-week text-info fs-4 me-3"></i>
+                        <h5 class="card-title">CA par Jour de Semaine</h5>
                     </div>
                     <div class="plot-container">
-                        <iframe src="/plot/vehicule"></iframe>
+                        <iframe src="/plot/weekday_revenue"></iframe>
                     </div>
                 </div>
             </div>
 
-            <!-- Daily -->
+            <!-- CA Mensuel par Paiement -->
             <div class="col-lg-6">
                 <div class="card h-100">
                     <div class="card-header d-flex align-items-center">
-                        <i class="bi bi-graph-up text-danger fs-4 me-3"></i>
-                        <h5 class="card-title">Évolution Journalière du Chiffre d'Affaires</h5>
+                        <i class="bi bi-calendar3 text-danger fs-4 me-3"></i>
+                        <h5 class="card-title">CA Mensuel par Type de Paiement</h5>
                     </div>
                     <div class="plot-container">
-                        <iframe src="/plot/daily"></iframe>
+                        <iframe src="/plot/monthly_payment"></iframe>
                     </div>
                 </div>
             </div>
 
             <!-- Prévision Prophet -->
-            <div class="col-lg-12">
-                <div class="card h-100">
-                    <div class="card-header d-flex align-items-center">
-                        <i class="bi bi-crystal-ball text-primary fs-4 me-3"></i>
-                        <h5 class="card-title">Prévisions de Passages (Prophet)</h5>
-                    </div>
-                    <div class="plot-container">
-                        <iframe src="/prevision" style="height: 600px;"></iframe>
-                    </div>
-                </div>
-            </div>
+
 
         </div>
     </div>

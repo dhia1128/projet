@@ -105,3 +105,101 @@ def plot_daily_trend():
     )
     fig.update_layout(height=600)
     return fig.to_html(full_html=False)
+
+
+def plot_monthly_revenue_by_payment():
+    df = get_data()
+    df['date_heure'] = pd.to_datetime(df['date_heure'], errors='coerce')
+    df = df.dropna(subset=['date_heure'])
+
+    monthly = (
+        df.assign(mois=df['date_heure'].dt.to_period('M').astype(str))
+        .groupby(['mois', 'type_paiement'], as_index=False)['montant_net']
+        .sum()
+    )
+
+    fig = px.bar(
+        monthly,
+        x='mois',
+        y='montant_net',
+        color='type_paiement',
+        barmode='stack',
+        title="CA Mensuel par Type de Paiement",
+        labels={
+            'mois': 'Mois',
+            'montant_net': 'CA (FCFA)',
+            'type_paiement': 'Type de Paiement'
+        }
+    )
+    fig.update_layout(height=600, xaxis_tickangle=-35)
+    return fig.to_html(full_html=False)
+
+
+def plot_transactions_by_hour():
+    df = get_data()
+    df['date_heure'] = pd.to_datetime(df['date_heure'], errors='coerce')
+    df = df.dropna(subset=['date_heure'])
+    df['heure'] = df['date_heure'].dt.hour
+
+    hourly = (
+        df.groupby('heure', as_index=False)
+        .size()
+        .rename(columns={'size': 'nombre_transactions'})
+    )
+
+    fig = px.bar(
+        hourly,
+        x='heure',
+        y='nombre_transactions',
+        title="Nombre de Transactions par Heure",
+        labels={
+            'heure': 'Heure de la Journée',
+            'nombre_transactions': 'Nombre de Transactions'
+        },
+        color='nombre_transactions',
+        color_continuous_scale='Blues'
+    )
+    fig.update_layout(height=600, xaxis=dict(dtick=1))
+    return fig.to_html(full_html=False)
+
+
+def plot_revenue_by_weekday():
+    df = get_data()
+    df['date_heure'] = pd.to_datetime(df['date_heure'], errors='coerce')
+    df = df.dropna(subset=['date_heure'])
+
+    day_map = {
+        0: 'Lundi',
+        1: 'Mardi',
+        2: 'Mercredi',
+        3: 'Jeudi',
+        4: 'Vendredi',
+        5: 'Samedi',
+        6: 'Dimanche'
+    }
+    day_order = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
+
+    df['jour_num'] = df['date_heure'].dt.dayofweek
+    df['jour_semaine'] = df['jour_num'].map(day_map)
+
+    weekly = (
+        df.groupby(['jour_num', 'jour_semaine'], as_index=False)['montant_net']
+        .sum()
+        .sort_values('jour_num')
+    )
+
+    fig = px.bar(
+        weekly,
+        x='jour_semaine',
+        y='montant_net',
+        title="Chiffre d'Affaires par Jour de Semaine",
+        labels={
+            'jour_semaine': 'Jour de Semaine',
+            'montant_net': 'CA (FCFA)'
+        },
+        color='montant_net',
+        color_continuous_scale='Tealgrn',
+        category_orders={'jour_semaine': day_order}
+    )
+    fig.update_layout(height=600)
+    return fig.to_html(full_html=False)
