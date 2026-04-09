@@ -18,6 +18,7 @@ from app.suivi_service import (
 from app.prevision_serviceprophet import visualise
 from app.analyse_service import analyse_global, analyse_par_classe, analyse_par_gare
 from app.Statstiques_service import get_traffic_stats
+from app.repartionparclasse_service import _load_classes_data, _calculate_hourly_patterns, _calculate_daily_patterns
 
 
 app = FastAPI(title="TollXpress Dashboard - Plotly", version="1.0")
@@ -100,7 +101,7 @@ def traffic_stats_data():
     return JSONResponse(content=get_traffic_stats())
 
 
-@app.get("/prevision", response_class=HTMLResponse)
+@app.get("/prevision/vehicule/hour", response_class=HTMLResponse)
 async def prevision_plot():
     return visualise()
 
@@ -116,6 +117,31 @@ def route_gare():
 @app.get("/analyse/global", response_class=HTMLResponse)
 def route_global():
     return analyse_global()
+
+
+@app.get("/class_trends", response_class=JSONResponse)
+def get_data_api():
+    data = get_data()
+    return JSONResponse(content=data.to_dict(orient="records"))
+
+@app.get("/prevision/class_trends", response_class=JSONResponse)
+def class_trends_api():
+    """API endpoint that returns class trends data as JSON"""
+    loaded_data = _load_classes_data()
+    hourly_patterns = _calculate_hourly_patterns(loaded_data)
+    daily_patterns = _calculate_daily_patterns(loaded_data)
+    return JSONResponse(content={"hourly_patterns": hourly_patterns.to_dict(), "daily_patterns": daily_patterns.to_dict()})
+
+@app.get("/class_trends_dashboard", response_class=HTMLResponse)
+def class_trends_dashboard():
+    """Serve the class trends visualization dashboard"""
+    with open(TEMPLATES_DIR / "class_trends.html", "r", encoding="utf-8") as f:
+        html_content = f.read()
+    return HTMLResponse(html_content)
+
+
+
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=8000)
