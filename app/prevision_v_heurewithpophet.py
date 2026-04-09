@@ -98,36 +98,11 @@ def visualise() -> str:
 
     last_hist = hourly[hourly["ds"] >= hourly["ds"].max() - pd.Timedelta(days=14)]
 
-    daily_outlook = (
-        future_fc.assign(day=future_fc["ds"].dt.date)
-        .groupby("day")["yhat"]
-        .sum()
-        .reset_index()
-    )
-
-    hourly_profile = (
-        future_fc.assign(hour=future_fc["ds"].dt.hour)
-        .groupby("hour")["yhat"]
-        .mean()
-        .reset_index()
-        .sort_values("hour")
-    )
-
     peak_idx = int(future_fc["yhat"].idxmax())
     peak_row = future_fc.loc[peak_idx]
     forecast_total = float(future_fc["yhat"].sum())
 
-    fig = make_subplots(
-        rows=3,
-        cols=1,
-        subplot_titles=(
-            "Passages horaires: historique recent + prevision 7 jours",
-            "Projection journaliere des 7 prochains jours",
-            "Profil horaire moyen prevu",
-        ),
-        vertical_spacing=0.12,
-        row_heights=[0.48, 0.26, 0.26],
-    )
+    fig = go.Figure()
 
     fig.add_trace(
         go.Scatter(
@@ -137,9 +112,7 @@ def visualise() -> str:
             name="Historique (14 jours)",
             line=dict(color="#2563EB", width=1.8),
             opacity=0.75,
-        ),
-        row=1,
-        col=1,
+        )
     )
 
     fig.add_trace(
@@ -150,9 +123,7 @@ def visualise() -> str:
             name="Prevision horaire",
             line=dict(color="#DC2626", width=2.5, dash="dash"),
             marker=dict(size=4),
-        ),
-        row=1,
-        col=1,
+        )
     )
 
     fig.add_trace(
@@ -163,38 +134,12 @@ def visualise() -> str:
             fillcolor="rgba(220,38,38,0.12)",
             line=dict(color="rgba(0,0,0,0)"),
             name="Intervalle 95%",
-        ),
-        row=1,
-        col=1,
+        )
     )
 
     fig.add_vline(
         x=hourly["ds"].max(),
         line=dict(color="gray", dash="dash", width=1),
-        row=1,
-        col=1,
-    )
-
-    fig.add_trace(
-        go.Bar(
-            x=daily_outlook["day"],
-            y=daily_outlook["yhat"],
-            marker_color="#0EA5E9",
-            name="Volume journalier prevu",
-        ),
-        row=2,
-        col=1,
-    )
-
-    fig.add_trace(
-        go.Bar(
-            x=hourly_profile["hour"],
-            y=hourly_profile["yhat"],
-            marker_color="#059669",
-            name="Moyenne par heure",
-        ),
-        row=3,
-        col=1,
     )
 
     fig.add_annotation(
@@ -210,23 +155,20 @@ def visualise() -> str:
         bordercolor="#e5e7eb",
         borderwidth=1,
         bgcolor="rgba(255,255,255,0.92)",
-        row=1,
-        col=1,
     )
 
     fig.update_layout(
-        title="Prevision Prophet amelioree - pilotage operationnel 7 jours",
+        title="Passages horaires: historique recent + prevision 7 jours",
         template="plotly_white",
         hovermode="x unified",
-        height=980,
+        height=500,
         margin=dict(t=90, b=50, l=60, r=40),
         legend=dict(orientation="h", y=1.03, x=0),
+        xaxis_title="Date",
+        yaxis_title="Vehicules/h",
     )
 
     fig.update_xaxes(showgrid=True, gridcolor="#f0f0f0")
     fig.update_yaxes(showgrid=True, gridcolor="#f0f0f0")
-    fig.update_yaxes(title_text="Vehicules/h", row=1, col=1)
-    fig.update_yaxes(title_text="Vehicules/jour", row=2, col=1)
-    fig.update_yaxes(title_text="Vehicules/h", row=3, col=1)
 
     return fig.to_html(full_html=False)
