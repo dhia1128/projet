@@ -26,7 +26,7 @@ engine = create_engine(f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}
 def extract(csv_file):
     logging.info(f"Extracting data from {csv_file}...")
     df = pd.read_csv(csv_file)
-    logging.info(f"✅ Extracted {len(df):,} rows")
+    logging.info(f" Extracted {len(df):,} rows")
     return df
 
 def transform(df):
@@ -45,7 +45,7 @@ def transform(df):
     # Add load timestamp
     df['load_timestamp'] = datetime.now()
     
-    logging.info("✅ Transformation completed")
+    logging.info(" Transformation completed")
     return df
 
 def create_table(engine, table_name):
@@ -67,7 +67,7 @@ def create_table(engine, table_name):
     """
     with engine.connect() as conn:
         conn.execute(text(create_sql))
-    logging.info(f"✅ Table '{table_name}' created or already exists")
+    logging.info(f" Table '{table_name}' created or already exists")
 
 def load(df, engine, table_name):
     logging.info(f"Loading {len(df):,} rows into PostgreSQL table '{table_name}'...")
@@ -81,11 +81,11 @@ def load(df, engine, table_name):
         method='multi',
         chunksize=15000
     )
-    logging.info("✅ Data loaded successfully")
+    logging.info(" Data loaded successfully")
 
 def run_etl():
     start_time = datetime.now()
-    logging.info("🚀 Starting ETL Pipeline - TollXpress Data Warehouse")
+    logging.info(" Starting ETL Pipeline - TollXpress Data Warehouse")
 
     # Run pipeline
     df = extract(CSV_FILE)
@@ -94,7 +94,7 @@ def run_etl():
     load(df_clean, engine, TABLE_NAME)
 
     duration = datetime.now() - start_time
-    logging.info(f"🎉 ETL Completed in {duration.total_seconds():.2f} seconds!")
+    logging.info(f" ETL Completed in {duration.total_seconds():.2f} seconds!")
 
 if __name__ == "__main__":
     run_etl()

@@ -3,7 +3,8 @@ from fastapi.responses import HTMLResponse, JSONResponse
 import uvicorn
 from sqlalchemy import text
 from pathlib import Path
-from app.plots_plotly import (
+from app.database import get_engine
+from app.suivi_service import (
     plot_transactions_by_payment,
     plot_montant_distribution,
     plot_top_gares_ca,
@@ -12,12 +13,11 @@ from app.plots_plotly import (
     plot_monthly_revenue_by_payment,
     plot_transactions_by_hour,
     plot_revenue_by_weekday,
-    get_data
+    get_data    
 )
-from app.database import get_engine
-from app.prevision_v_heurewithpophet import visualise
-from app.prophet_forecasts import plot_classe, plot_gare, plot_global
-from app.traffic_stats_service import get_traffic_stats
+from app.prevision_serviceprophet import visualise
+from app.analyse_service import analyse_global, analyse_par_classe, analyse_par_gare
+from app.Statstiques_service import get_traffic_stats
 
 
 app = FastAPI(title="TollXpress Dashboard - Plotly", version="1.0")
@@ -105,17 +105,17 @@ async def prevision_plot():
     return visualise()
 
 
-@app.get("/plot/classe", response_class=HTMLResponse)
+@app.get("/analyse/classe", response_class=HTMLResponse)
 def route_classe():  
-    return plot_classe()
+    return analyse_par_classe()
 
-@app.get("/plot/gare", response_class=HTMLResponse)
+@app.get("/analyse/gare", response_class=HTMLResponse)
 def route_gare():
-    return plot_gare()
+    return analyse_par_gare()
 
-@app.get("/plot/global", response_class=HTMLResponse)
+@app.get("/analyse/global", response_class=HTMLResponse)
 def route_global():
-    return plot_global()
-    
+    return analyse_global()
+
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=8000)
