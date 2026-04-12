@@ -19,7 +19,7 @@ from app.prevision_serviceprophet import visualise
 from app.analyse_service import analyse_global, analyse_par_classe, analyse_par_gare
 from app.Statstiques_service import get_traffic_stats
 from app.repartionparclasse_service import _load_classes_data, _calculate_hourly_patterns, _calculate_daily_patterns
-
+from app.prediction_gare_service import  predict_global_reseau
 
 app = FastAPI(title="TollXpress Dashboard - Plotly", version="1.0")
 
@@ -139,7 +139,14 @@ def class_trends_dashboard():
         html_content = f.read()
     return HTMLResponse(html_content)
 
+@app.get("/plot/global", response_class=HTMLResponse)
+def plot_global(): return predict_global_reseau()
 
+@app.get("/prevision", response_class=HTMLResponse)
+def prevision_page():
+    with open(TEMPLATES_DIR / "prevision.html", "r", encoding="utf-8") as f:
+        html_content = f.read()
+    return HTMLResponse(html_content)
 
 
 

@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TollXpress - Prévisions Trafic</title>
+    
+    <!-- Bootstrap 5.3 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+
+    <style>
+        body {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+        
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.75rem;
+        }
+        
+        .prevision-header {
+            background: linear-gradient(135deg, #0d6efd, #5c7292);
+            color: white;
+            padding: 3rem 0;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+        }
+        
+        .card {
+            border: none;
+            border-radius: 16px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-6px);
+        }
+        
+        .card-header {
+            background: white;
+            border-bottom: 2px solid #eee;
+            padding: 1.5rem;
+        }
+        
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #1a5490;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .plot-container {
+            background: white;
+            padding: 20px;
+            border-radius: 0 0 16px 16px;
+        }
+        
+        iframe {
+            width: 100%;
+            height: 550px;
+            border: none;
+            display: block;
+            border-radius: 8px;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+        
+        .loading i {
+            font-size: 2rem;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .info-section {
+            background: #e3f2fd;
+            border-left: 4px solid #0d6efd;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+        }
+
+        .info-section h5 {
+            color: #0d6efd;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .info-section p {
+            color: #555;
+            margin: 0;
+            font-size: 0.95rem;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow">
+        <div class="container">
+            <a class="navbar-brand d-flex align-items-center" href="/home">
+                <i class="bi bi-speedometer2 me-2 fs-3"></i> TollXpress
+            </a>
+            <div class="d-flex align-items-center gap-3">
+                <a class="text-white text-decoration-none" href="/home">Accueil</a>
+                <a class="text-white text-decoration-none" href="/dashboard">Dashboard</a>
+                <a class="text-white text-decoration-none" href="/traffic/stats" target="_blank">Stats Trafic</a>
+                <span class="navbar-text fs-5">Prévisions Trafic</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Header -->
+    <div class="prevision-header text-center">
+        <div class="container">
+            <h1 class="display-4 fw-bold mb-2">
+                <i class="bi bi-graph-up me-2"></i> Prévisions de Trafic
+            </h1>
+            <p class="lead mb-0">Analyse prévisionnelle du réseau TollXpress pour les 30 prochains jours</p>
+        </div>
+    </div>
+
+    <div class="container pb-5">
+        
+        <!-- Info Section -->
+        <div class="info-section">
+            <h5><i class="bi bi-info-circle me-2"></i>À propos de cette analyse</h5>
+            <p>Les prévisions sont générées par un modèle Prophet qui analyse les tendances historiques du trafic et les patterns saisonniers pour anticiper les flux des 30 prochains jours.</p>
+        </div>
+
+        <div class="row g-4">
+            <!-- Global Network Forecast -->
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">
+                            <i class="bi bi-diagram-3 text-primary"></i>
+                            Prévisions Réseau Global
+                        </h2>
+                        <small class="text-muted d-block mt-2">Tendances consolidées pour l'ensemble du réseau TollXpress</small>
+                    </div>
+                    <div class="plot-container">
+                        <div class="loading" id="loading">
+                            <i class="bi bi-hourglass-split"></i>
+                            <p>Chargement des prévisions...</p>
+                        </div>
+                        <div id="plot-wrapper" style="display: none;">
+                            <iframe id="forecast-plot" title="Prévisions Réseau Global"></iframe>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white text-center py-4 mt-5">
+        <div class="container">
+            <p class="mb-1">&copy; 2025 TollXpress - Dashboard Analytique</p>
+            <small>Système de suivi et d'analyse du réseau de péage routier du Bénin</small>
+        </div>
+    </footer>
+
+    <script>
+        // Load forecast plot
+        async function loadForecast() {
+            try {
+                const response = await fetch('/plot/global');
+                if (response.ok) {
+                    const html = await response.text();
+                    const iframe = document.getElementById('forecast-plot');
+                    
+                    // Create a blob from the HTML content
+                    const blob = new Blob([html], { type: 'text/html' });
+                    const url = URL.createObjectURL(blob);
+                    iframe.src = url;
+                    
+                    // Hide loading, show plot
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('plot-wrapper').style.display = 'block';
+                } else {
+                    showError('Erreur lors du chargement des prévisions');
+                }
+            } catch (error) {
+                console.error('Error loading forecast:', error);
+                showError('Erreur de connexion: ' + error.message);
+            }
+        }
+
+        function showError(message) {
+            document.getElementById('loading').innerHTML = `
+                <i class="bi bi-exclamation-triangle text-danger"></i>
+                <p class="text-danger">${message}</p>
+            `;
+        }
+
+        // Load on page load
+        document.addEventListener('DOMContentLoaded', loadForecast);
+    </script>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
