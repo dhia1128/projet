@@ -11,6 +11,7 @@ from sklearn.preprocessing import MinMaxScaler
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout
 from tensorflow.keras.callbacks import EarlyStopping
+from app.model_cache import save_model, load_model, model_exists
 
 # Reuse your existing data loading function
 def _load_daily_global() -> pd.DataFrame:
@@ -54,33 +55,49 @@ def _build_lstm_model(time_step: int = 7):
 def predict_global_reseau_lstm(days: int = 30, time_step: int = 7) -> str:
     """
     Prévision du trafic total avec LSTM (Deep Learning)
+    Loads cached model on subsequent calls (⚡ ~10-100x faster)
     Retourne un graphique Plotly similaire à Prophet
     """
     # 1. Load data
     agg = _load_daily_global()
     agg = agg.sort_values('ds').reset_index(drop=True)
     
-    # 2. Prepare data for LSTM
-    X, y, scaler = _prepare_lstm_data(agg['y'], time_step=time_step)
+    MODEL_NAME = f"lstm_reseau_global_ts{time_step}"
     
-    # 3. Split into train/test (80% train)
-    train_size = int(len(X) * 0.8)
-    X_train, X_test = X[:train_size], X[train_size:]
-    y_train, y_test = y[:train_size], y[train_size:]
+    # 2. Try to load cached model
+    cached_model, metadata = load_model(MODEL_NAME)
     
-    # 4. Build and train model
-    model = _build_lstm_model(time_step)
-    
-    early_stop = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
-    
-    history = model.fit(
-        X_train, y_train,
-        epochs=50,
-        batch_size=4,
-        validation_data=(X_test, y_test),
-        callbacks=[early_stop],
-        verbose=0
-    )
+    if cached_model is not None:
+        # ⚡ Model found in cache - use it directly!
+        model = cached_model
+        scaler = metadata.get("scaler")
+        print(f"⚡ Using cached model (instant load)")
+    else:
+        # First time: prepare data and train
+        print(f"🔄 Training new LSTM model...")
+        X, y, scaler = _prepare_lstm_data(agg['y'], time_step=time_step)
+        
+        # Split into train/test (80% train)
+        train_size = int(len(X) * 0.8)
+        X_train, X_test = X[:train_size], X[train_size:]
+        y_train, y_test = y[:train_size], y[train_size:]
+        
+        # Build and train model
+        model = _build_lstm_model(time_step)
+        
+        early_stop = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
+        
+        history = model.fit(
+            X_train, y_train,
+            epochs=50,
+            batch_size=4,
+            validation_data=(X_test, y_test),
+            callbacks=[early_stop],
+            verbose=0
+        )
+        
+        # Save model + scaler to cache (⚡ for next time)
+        save_model(model, MODEL_NAME, scaler=scaler)
     
     # 5. Forecast next 'days' days with noise decay to prevent convergence
     last_sequence = agg['y'].values[-time_step:].reshape(-1, 1)
