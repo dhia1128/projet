@@ -7,148 +7,164 @@ from plotly.subplots import make_subplots
 import warnings
 warnings.filterwarnings("ignore")
 from app.database import get_engine
+from sklearn.preprocessing import MinMaxScaler
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense, Dropout
+from tensorflow.keras.callbacks import EarlyStopping
 
-
-GARE_COLORS = {
-    "Cotonou-Nord": "#2563EB",
-    "Allada"      : "#059669",
-    "Houegbo"     : "#D97706",
-    "Porto-Novo"  : "#DC2626",
-    "Epke"        : "#7C3AED",
-    "Parakou"     : "#0891B2",
-}
-
-
-
-
+# Reuse your existing data loading function
 def _load_daily_global() -> pd.DataFrame:
-    """Retourne un DataFrame (ds, y) agrégé par jour sur tout le réseau."""
+    """Same as before"""
     df = pd.read_sql("SELECT DATE(Date_Heure) AS ds, COUNT(ID_transaction) AS y FROM fact_transactions GROUP BY DATE(Date_Heure)", get_engine())
     df["ds"] = pd.to_datetime(df["ds"])
     return df
 
 
-def _fit_prophet(agg: pd.DataFrame, days: int = 30) -> tuple:
-    """Entraîne Prophet et retourne (model, hist_fc, future_fc)."""
-    model = Prophet(
-        seasonality_mode="additive",
-        weekly_seasonality=True,
-        yearly_seasonality=True,
-        daily_seasonality=False,
-        interval_width=0.95,
-        changepoint_prior_scale=0.05,
-    )
-    model.fit(agg)
-    future   = model.make_future_dataframe(periods=days, freq="D")
-    forecast = model.predict(future)
-    for col in ["yhat", "yhat_lower", "yhat_upper"]:
-        forecast[col] = forecast[col].clip(lower=0)
-    hist_fc   = forecast[forecast["ds"] <= agg["ds"].max()].copy()
-    future_fc = forecast[forecast["ds"] >  agg["ds"].max()].copy()
-    return model, hist_fc, future_fc
+def _prepare_lstm_data(data: pd.Series, time_step: int = 7):
+    """Create sequences for LSTM"""
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    scaled_data = scaler.fit_transform(data.values.reshape(-1, 1))
+
+    X, y = [], []
+    for i in range(len(scaled_data) - time_step):
+        X.append(scaled_data[i:(i + time_step), 0])
+        y.append(scaled_data[i + time_step, 0])
+
+    X = np.array(X)
+    y = np.array(y)
+    X = X.reshape(X.shape[0], X.shape[1], 1)   # (samples, time_steps, features)
+
+    return X, y, scaler
 
 
-# ════════════════════════════════════════════════════════════════════════════
+def _build_lstm_model(time_step: int = 7):
+    """Build LSTM model - simplified for small datasets"""
+    model = Sequential()
+    model.add(LSTM(32, return_sequences=True, input_shape=(time_step, 1)))
+    model.add(Dropout(0.1))
+    model.add(LSTM(16, return_sequences=False))
+    model.add(Dropout(0.1))
+    model.add(Dense(8))
+    model.add(Dense(1))
+    
+    model.compile(optimizer='adam', loss='mean_squared_error')
+    return model
 
-def predict_global_reseau(days: int = 30) -> str:
+
+def predict_global_reseau_lstm(days: int = 30, time_step: int = 7) -> str:
     """
-    Prévision du trafic total réseau sur 30 jours.
-    Retourne HTML Plotly avec 2 vues :
-      - (1,1) Prévision journalière — barres journalières prévues avec IC
-      - (1,2) Profil hebdomadaire moyen prévu (lun → dim)
+    Prévision du trafic total avec LSTM (Deep Learning)
+    Retourne un graphique Plotly similaire à Prophet
     """
+    # 1. Load data
     agg = _load_daily_global()
-    model, hist_fc, future_fc = _fit_prophet(agg, days=days)
-
+    agg = agg.sort_values('ds').reset_index(drop=True)
+    
+    # 2. Prepare data for LSTM
+    X, y, scaler = _prepare_lstm_data(agg['y'], time_step=time_step)
+    
+    # 3. Split into train/test (80% train)
+    train_size = int(len(X) * 0.8)
+    X_train, X_test = X[:train_size], X[train_size:]
+    y_train, y_test = y[:train_size], y[train_size:]
+    
+    # 4. Build and train model
+    model = _build_lstm_model(time_step)
+    
+    early_stop = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
+    
+    history = model.fit(
+        X_train, y_train,
+        epochs=50,
+        batch_size=4,
+        validation_data=(X_test, y_test),
+        callbacks=[early_stop],
+        verbose=0
+    )
+    
+    # 5. Forecast next 'days' days with noise decay to prevent convergence
+    last_sequence = agg['y'].values[-time_step:].reshape(-1, 1)
+    last_sequence_scaled = scaler.transform(last_sequence)
+    
+    # Calculate trend from recent data for better predictions
+    recent_trend = (agg['y'].values[-1] - agg['y'].values[-7]) / 7 if len(agg) >= 7 else 0
+    
+    future_predictions = []
+    current_seq = last_sequence_scaled.copy()
+    
+    for step in range(days):
+        pred = model.predict(current_seq.reshape(1, time_step, 1), verbose=0)
+        future_predictions.append(pred[0, 0])
+        
+        # Add decaying noise to prevent autoregressive collapse
+        noise = np.random.normal(0, 0.01 * (1 - step / days))
+        pred_with_noise = pred + noise
+        
+        # Update sequence (shift + add new prediction)
+        current_seq = np.append(current_seq[1:], pred_with_noise).reshape(-1, 1)
+    
+    # Inverse transform predictions
+    future_pred = scaler.inverse_transform(np.array(future_predictions).reshape(-1, 1)).flatten()
+    future_pred = np.maximum(future_pred, 0)   # No negative transactions
+    
+    # Apply slight trend to add variation
+    trend_boost = np.linspace(0, recent_trend * days * 0.1, days)
+    future_pred = future_pred + trend_boost
+    
+    # Create future dates
+    last_date = agg['ds'].max()
+    future_dates = pd.date_range(start=last_date + pd.Timedelta(days=1), periods=days, freq='D')
+    
+    # 6. Create Plotly figure (similar to your Prophet version)
     fig = make_subplots(
         rows=1, cols=2,
         subplot_titles=(
-            f"Prévision journalière — {days} prochains jours",
-            "Profil hebdomadaire moyen prévu",
+            f"Prévision LSTM — {days} prochains jours",
+            "Profil hebdomadaire moyen prévu (LSTM)"
         ),
-        vertical_spacing=0.16,
         horizontal_spacing=0.12,
     )
 
-    # ── (1,1) Barres journalières ─────────────────────────────────────────
-    bar_colors = [
-        "#DC2626" if d.weekday() >= 5 else "#2563EB"
-        for d in future_fc["ds"]
-    ]
+    # Left plot: Daily forecast
+    bar_colors = ["#DC2626" if d.weekday() >= 5 else "#2563EB" for d in future_dates]
+    
     fig.add_trace(go.Bar(
-        x=future_fc["ds"], y=future_fc["yhat"],
-        name="Véhicules/jour",
+        x=future_dates, 
+        y=future_pred,
+        name="Véhicules/jour (LSTM)",
         marker_color=bar_colors,
         opacity=0.85,
-        error_y=dict(
-            type="data", symmetric=False,
-            array=(future_fc["yhat_upper"] - future_fc["yhat"]).values,
-            arrayminus=(future_fc["yhat"] - future_fc["yhat_lower"]).values,
-            color="rgba(0,0,0,0.25)",
-        ),
-        showlegend=False,
     ), row=1, col=1)
 
-    # légende couleur weekend
-    for label, color in [("Semaine", "#2563EB"), ("Weekend", "#DC2626")]:
-        fig.add_trace(go.Scatter(
-            x=[None], y=[None], mode="markers",
-            marker=dict(color=color, size=10, symbol="square"),
-            name=label, showlegend=True,
-        ), row=1, col=1)
-
-    # ── (1,2) Profil hebdomadaire ─────────────────────────────────────────
-    future_fc["weekday_num"] = future_fc["ds"].dt.dayofweek
-    weekly = (
-        future_fc.groupby("weekday_num")[["yhat", "yhat_lower", "yhat_upper"]]
-                 .mean()
-                 .reindex(range(7), fill_value=0)
-    )
+    # Right plot: Weekly profile
+    future_df = pd.DataFrame({'ds': future_dates, 'yhat': future_pred})
+    future_df['weekday_num'] = future_df['ds'].dt.dayofweek
+    
+    weekly = future_df.groupby('weekday_num')['yhat'].mean().reindex(range(7), fill_value=0)
     jours_fr = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"]
     wk_colors = ["#DC2626" if j >= 5 else "#2563EB" for j in range(7)]
 
     fig.add_trace(go.Bar(
-        x=jours_fr, y=weekly["yhat"].values,
-        marker_color=wk_colors, opacity=0.85,
-        name="Moy/jour semaine",
-        error_y=dict(
-            type="data", symmetric=False,
-            array=(weekly["yhat_upper"] - weekly["yhat"]).values,
-            arrayminus=(weekly["yhat"] - weekly["yhat_lower"]).values,
-            color="rgba(0,0,0,0.25)",
-        ),
-        showlegend=False,
+        x=jours_fr, 
+        y=weekly.values,
+        marker_color=wk_colors,
+        opacity=0.85,
+        name="Moyenne par jour de semaine"
     ), row=1, col=2)
 
-    # ligne moyenne globale
-    moy_global = weekly["yhat"].mean()
-    fig.add_hline(
-        y=moy_global,
-        line=dict(color="#94a3b8", dash="dash", width=1.2),
-        row=1, col=2,
-    )
-    fig.add_annotation(
-        x=6, y=moy_global * 1.04,
-        text=f"Moy: {moy_global:.0f}",
-        showarrow=False, font=dict(size=10, color="#64748b"),
-        row=1, col=2,
-    )
+    # Global average line
+    moy_global = weekly.mean()
+    fig.add_hline(y=moy_global, line=dict(color="#94a3b8", dash="dash"), row=1, col=2)
 
     fig.update_layout(
         title=dict(
-            text=f"Prophet — Trafic Global Réseau TollXpress · Prévision {days} jours",
-            font=dict(size=16),
+            text=f"LSTM — Prévision Trafic Global Réseau TollXpress ({days} jours)",
+            font=dict(size=16)
         ),
         height=820,
         template="plotly_white",
         hovermode="x unified",
         legend=dict(orientation="h", y=1.04, x=0),
-        margin=dict(t=95, b=50, l=60, r=40),
     )
-    fig.update_xaxes(showgrid=True, gridcolor="#f1f5f9", tickangle=30)
-    fig.update_yaxes(showgrid=True, gridcolor="#f1f5f9")
 
     return fig.to_html(full_html=False)
-
-
-
