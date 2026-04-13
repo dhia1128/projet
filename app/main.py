@@ -19,9 +19,13 @@ from app.prevision_serviceprophet import visualise
 from app.analyse_service import analyse_global, analyse_par_classe, analyse_par_gare
 from app.Statstiques_service import get_traffic_stats
 from app.repartionparclasse_service import _load_classes_data, _calculate_hourly_patterns, _calculate_daily_patterns
+<<<<<<< HEAD
 from app.prediction_global_traffic_service import  predict_global_reseau_lstm, _load_daily_global, _prepare_lstm_data, _build_lstm_model
+=======
+from app.prediction_gare_service import  predict_global_reseau
+>>>>>>> parent of f0357cc (traffic_global_prediction)
 
-app = FastAPI(title="TollXpress Dashboard - Plotly", version="1.0")
+app = FastAPI(title="TollXpress Dashboard - Plotly", version="1.0") 
 
 # Include prediction endpoints
 
