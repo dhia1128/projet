@@ -3,7 +3,6 @@ import os
 import numpy as np
 import pandas as pd
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
-
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
 from tensorflow.keras.models import load_model
@@ -68,9 +67,9 @@ def load_cached_data():
         _scaler_cache.fit(hourly[['nombre_voitures']])
         _lookback_cache = 23
         
-        print(f"✅ Cache loaded: {len(hourly)} hours, Model ready")
+        print(f" Cache loaded: {len(hourly)} hours, Model ready")
     except Exception as e:
-        print(f"❌ Cache load failed: {e}")
+        print(f" Cache load failed: {e}")
         raise
 
 
