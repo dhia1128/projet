@@ -70,13 +70,6 @@ y_train, y_test = y[:train_size], y[train_size:]
 print(f'X_train : {X_train.shape} | y_train : {y_train.shape}')
 print(f'X_test  : {X_test.shape}  | y_test  : {y_test.shape}')
 
-# ── 3. ARCHITECTURE LSTM KERAS ────────────────────────────────────────────
-#
-# PyTorch (original)        →  Keras (amélioré)
-# LSTM(64, 2 layers)        →  BiLSTM(128) + LSTM(64) + LSTM(32)
-# Aucun dropout             →  Dropout(0.2-0.3) après chaque bloc
-# Aucune batch norm         →  BatchNormalization après chaque bloc
-# Linear(1)                 →  Dense(32, relu) + Dense(1)
 
 model = Sequential([
     # Bloc 1 : BiLSTM — capture les patterns dans les 2 sens
@@ -253,3 +246,4 @@ plt.grid(True, alpha=0.3)
 plt.tight_layout()
 plt.savefig('lstm_keras_forecast.png', dpi=150, bbox_inches='tight')
 plt.show()
+

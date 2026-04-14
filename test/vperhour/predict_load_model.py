@@ -1,12 +1,11 @@
 import sys
 import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
 from tensorflow.keras.models import load_model
+import tensorflow as tf
 from app.database import engine
 import io
 import base64
@@ -15,17 +14,194 @@ from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
 from typing import Optional
 
+# Disable TensorFlow verbose output
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+tf.get_logger().setLevel('ERROR')
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+
 app = FastAPI(title="LSTM Traffic Prediction API", version="1.0.0")
 
 # =============================================================================
-# LOAD SAVED MODEL AND GENERATE PREDICTIONS
+# GLOBAL CACHE FOR PERFORMANCE
 # =============================================================================
+_model_cache = None
+_scaler_cache = None
+_hourly_data_cache = None
+_lookback_cache = None
 
+
+def load_cached_data():
+    """Load and cache model, scaler, and hourly data once at startup"""
+    global _model_cache, _scaler_cache, _hourly_data_cache, _lookback_cache
+    
+    print("📦 Loading model and data cache...")
+    
+    try:
+        # Load model
+        model_path = os.path.join(os.path.dirname(__file__), 'lstm_keras_best.keras')
+        _model_cache = load_model(model_path)
+        
+        # Load data
+        df = pd.read_sql_query("SELECT * FROM fact_transactions LIMIT 1", engine)
+        date_col = None
+        for col in ['Date_Heure', 'date_heure', 'datetime', 'timestamp']:
+            if col in df.columns:
+                date_col = col
+                break
+        
+        if date_col is None:
+            raise ValueError(f"No date column found")
+        
+        df = pd.read_sql_query(f"SELECT {date_col} FROM fact_transactions ORDER BY {date_col}", engine)
+        df[date_col] = pd.to_datetime(df[date_col])
+        df.set_index(date_col, inplace=True)
+        
+        hourly = df.resample('h').size()
+        hourly = pd.DataFrame({'nombre_voitures': hourly})
+        hourly = hourly[hourly['nombre_voitures'] > 0]
+        _hourly_data_cache = hourly
+        
+        # Fit scaler
+        _scaler_cache = MinMaxScaler()
+        _scaler_cache.fit(hourly[['nombre_voitures']])
+        _lookback_cache = 23
+        
+        print(f"✅ Cache loaded: {len(hourly)} hours, Model ready")
+    except Exception as e:
+        print(f"❌ Cache load failed: {e}")
+        raise
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Load cache on API startup"""
+    load_cached_data()
+
+
+def predict_fast(
+    lookback=23,
+    future_hours=7*24,
+    noise_std=0.05,
+    generate_plot=False,
+    verbose=False
+):
+    """
+    Fast prediction using cached model and data.
+    
+    Args:
+        lookback (int): Number of past hours to use
+        future_hours (int): Number of hours to predict
+        noise_std (float): Noise standard deviation
+        generate_plot (bool): Whether to generate plot
+        verbose (bool): Print progress (default: False)
+    
+    Returns:
+        dict: Predictions and metadata
+    """
+    try:
+        # Use cached data
+        model = _model_cache
+        scaler = _scaler_cache
+        hourly = _hourly_data_cache
+        
+        if model is None or scaler is None:
+            raise RuntimeError("Model cache not loaded. Call startup first.")
+        
+        # Adjust lookback if needed
+        lookback = min(lookback, len(hourly))
+        
+        # Get last known data
+        last_known_scaled_data = scaler.transform(hourly['nombre_voitures'].values[-lookback:].reshape(-1, 1))
+        input_seq = last_known_scaled_data.copy()
+        
+        # Generate predictions
+        future_predictions_clean = []
+        for step in range(future_hours):
+            x_input = input_seq.reshape(1, lookback, 1)
+            pred_scaled = model.predict(x_input, verbose=0)[0, 0]
+            future_predictions_clean.append(pred_scaled)
+            
+            # Add noise
+            noise = np.random.normal(0, noise_std)
+            pred_noisy = np.clip(pred_scaled + noise, 0.0, 1.0)
+            
+            # Update sequence
+            input_seq = np.append(input_seq[1:], [[pred_noisy]], axis=0)
+        
+        # Denormalize
+        predictions = scaler.inverse_transform(
+            np.array(future_predictions_clean).reshape(-1, 1)
+        ).flatten()
+        predictions = np.clip(predictions, 0, None)
+        
+        # Generate dates
+        last_ts = hourly.index[-1]
+        future_dates = pd.date_range(
+            start=last_ts + pd.Timedelta(hours=1),
+            periods=future_hours, freq='h'
+        )
+        
+        if verbose:
+            print(f"✅ Generated {len(predictions)} predictions")
+        
+        # Create plot if needed
+        plot_base64 = None
+        if generate_plot:
+            fig, ax = plt.subplots(figsize=(16, 7))
+            
+            hist_hours = min(4*7*24, len(hourly))
+            ax.plot(
+                hourly.index[-hist_hours:],
+                hourly['nombre_voitures'].tail(hist_hours),
+                label='Historical Data',
+                color='#2563EB', linewidth=1.5, alpha=0.8
+            )
+            
+            ax.plot(
+                future_dates, predictions,
+                label=f'LSTM Forecast ({future_hours}h)',
+                color='#DC2626', linewidth=2, linestyle='--'
+            )
+            
+            ax.axvspan(future_dates[0], future_dates[-1], alpha=0.1, color='#DC2626')
+            ax.axvline(x=last_ts, color='gray', linestyle=':', linewidth=2, alpha=0.7)
+            
+            ax.set_title(f'LSTM Traffic Forecast - {future_hours} hours', fontsize=14, fontweight='bold')
+            ax.set_xlabel('Date', fontsize=12)
+            ax.set_ylabel('Vehicles per hour', fontsize=12)
+            ax.legend(loc='best', fontsize=11)
+            ax.grid(True, alpha=0.3)
+            plt.tight_layout()
+            
+            buffer = io.BytesIO()
+            plt.savefig(buffer, format='png', dpi=100, bbox_inches='tight')
+            buffer.seek(0)
+            plot_base64 = base64.b64encode(buffer.read()).decode('utf-8')
+            plt.close()
+        
+        return {
+            'predictions': predictions,
+            'dates': future_dates,
+            'mean': predictions.mean(),
+            'min': predictions.min(),
+            'max': predictions.max(),
+            'plot': plot_base64
+        }
+    
+    except Exception as e:
+        if verbose:
+            print(f"❌ Prediction error: {e}")
+        raise
+
+
+# Keep old function for backward compatibility
 def load_and_predict(
     model_path='lstm_keras_best.keras',
     lookback=23,
     future_hours=7*24,
-    noise_std=0.05
+    noise_std=0.05,
+    generate_plot=True
 ):
     """
     Load a saved LSTM model and generate predictions.
@@ -35,6 +211,7 @@ def load_and_predict(
         lookback (int): Number of past hours to use for prediction (23 by default)
         future_hours (int): Number of future hours to predict (default: 7 days)
         noise_std (float): Standard deviation for Gaussian noise
+        generate_plot (bool): Whether to generate a plot (default: True)
     
     Returns:
         dict: Dictionary containing predictions, dates, and metadata
@@ -139,42 +316,43 @@ def load_and_predict(
         print(f"   Max: {predictions.max():.1f} vehicles/hour")
         print(f"   Min: {predictions.min():.1f} vehicles/hour")
         
-        # Step 5: Plot results
-        print(f"\n5️⃣  Creating visualization...")
-        fig, ax = plt.subplots(figsize=(16, 7))
-        
-        # Historical data
-        hist_hours = min(4*7*24, len(hourly))
-        ax.plot(
-            hourly.index[-hist_hours:],
-            hourly['nombre_voitures'].tail(hist_hours),
-            label='Historical Data',
-            color='#2563EB', linewidth=1.5, alpha=0.8
-        )
-        
-        # Predictions
-        ax.plot(
-            future_dates, predictions,
-            label=f'LSTM Forecast ({future_hours}h)',
-            color='#DC2626', linewidth=2, linestyle='--'
-        )
-        
-        # Prediction zone
-        ax.axvspan(future_dates[0], future_dates[-1], alpha=0.1, color='#DC2626')
-        ax.axvline(x=last_ts, color='gray', linestyle=':', linewidth=2, alpha=0.7)
-        
-        ax.set_title(f'LSTM Traffic Forecast - {future_hours} hours', fontsize=14, fontweight='bold')
-        ax.set_xlabel('Date', fontsize=12)
-        ax.set_ylabel('Vehicles per hour', fontsize=12)
-        ax.legend(loc='best', fontsize=11)
-        ax.grid(True, alpha=0.3)
-        plt.tight_layout()
-        
-        # Save
-        output_path = 'lstm_predictions_forecast.png'
-        plt.savefig(output_path, dpi=150, bbox_inches='tight')
-        print(f"✅ Plot saved: {output_path}")
-        plt.show()
+        # Step 5: Plot results (optional)
+        if generate_plot:
+            print(f"\n5️⃣  Creating visualization...")
+            fig, ax = plt.subplots(figsize=(16, 7))
+            
+            # Historical data
+            hist_hours = min(4*7*24, len(hourly))
+            ax.plot(
+                hourly.index[-hist_hours:],
+                hourly['nombre_voitures'].tail(hist_hours),
+                label='Historical Data',
+                color='#2563EB', linewidth=1.5, alpha=0.8
+            )
+            
+            # Predictions
+            ax.plot(
+                future_dates, predictions,
+                label=f'LSTM Forecast ({future_hours}h)',
+                color='#DC2626', linewidth=2, linestyle='--'
+            )
+            
+            # Prediction zone
+            ax.axvspan(future_dates[0], future_dates[-1], alpha=0.1, color='#DC2626')
+            ax.axvline(x=last_ts, color='gray', linestyle=':', linewidth=2, alpha=0.7)
+            
+            ax.set_title(f'LSTM Traffic Forecast - {future_hours} hours', fontsize=14, fontweight='bold')
+            ax.set_xlabel('Date', fontsize=12)
+            ax.set_ylabel('Vehicles per hour', fontsize=12)
+            ax.legend(loc='best', fontsize=11)
+            ax.grid(True, alpha=0.3)
+            plt.tight_layout()
+            
+            # Save
+            output_path = 'lstm_predictions_forecast.png'
+            plt.savefig(output_path, dpi=150, bbox_inches='tight')
+            print(f"✅ Plot saved: {output_path}")
+            plt.show()
         
         # Step 6: Return results
         print(f"\n✅ PREDICTION COMPLETE!")
@@ -221,9 +399,7 @@ if __name__ == "__main__":
         print(f"\n... ({len(predictions_df)-24} more rows)\n")
 
 
-# =============================================================================
-# FASTAPI ENDPOINTS
-# =============================================================================
+
 
 class PredictionRequest(BaseModel):
     """Request model for prediction parameters"""
@@ -264,7 +440,8 @@ async def predict_json(request: PredictionRequest):
             model_path=request.model_path,
             lookback=request.lookback,
             future_hours=request.future_hours,
-            noise_std=request.noise_std
+            noise_std=request.noise_std,
+            generate_plot=False
         )
         
         if not results:
@@ -274,7 +451,7 @@ async def predict_json(request: PredictionRequest):
         predictions_list = [
             {
                 "date": str(date),
-                "predicted_vehicles": float(pred),
+                "predicted_vehicles": int(round(pred)),
                 "hour": i
             }
             for i, (date, pred) in enumerate(zip(results['dates'], results['predictions']))
@@ -283,9 +460,9 @@ async def predict_json(request: PredictionRequest):
         return {
             "status": "success",
             "metadata": {
-                "mean_prediction": float(results['mean']),
-                "min_prediction": float(results['min']),
-                "max_prediction": float(results['max']),
+                "mean_prediction": int(round(results['mean'])),
+                "min_prediction": int(round(results['min'])),
+                "max_prediction": int(round(results['max'])),
                 "total_predictions": len(predictions_list),
                 "lookback_hours": results['lookback']
             },
@@ -377,7 +554,7 @@ async def predict_full(request: PredictionRequest):
         predictions_list = [
             {
                 "date": str(date),
-                "predicted_vehicles": float(pred),
+                "predicted_vehicles": int(round(pred)),
                 "hour": i
             }
             for i, (date, pred) in enumerate(zip(results['dates'], results['predictions']))
@@ -419,9 +596,9 @@ async def predict_full(request: PredictionRequest):
         return {
             "status": "success",
             "metadata": {
-                "mean_prediction": float(results['mean']),
-                "min_prediction": float(results['min']),
-                "max_prediction": float(results['max']),
+                "mean_prediction": int(round(results['mean'])),
+                "min_prediction": int(round(results['min'])),
+                "max_prediction": int(round(results['max'])),
                 "total_predictions": len(predictions_list),
                 "lookback_hours": results['lookback']
             },
