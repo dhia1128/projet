@@ -15,12 +15,10 @@ from app.suivi_service import (
     plot_revenue_by_weekday,
     get_data    
 )
-from app.prevision_serviceprophet import visualise
 from app.analyse_service import analyse_global, analyse_par_classe, analyse_par_gare
 from app.Statstiques_service import get_traffic_stats
 from app.repartionparclasse_service import _load_classes_data, _calculate_hourly_patterns, _calculate_daily_patterns
 
-from app.prediction_gare_service import predict_global_reseau_lstm
 
 app = FastAPI(title="TollXpress Dashboard - Plotly", version="1.0") 
 
@@ -102,22 +100,64 @@ def traffic_stats_data():
     return JSONResponse(content=get_traffic_stats())
 
 
-@app.get("/prevision/vehicule/hour", response_class=HTMLResponse)
-async def prevision_plot():
-    return visualise()
 
+
+# ====================== ANALYSIS API ENDPOINTS ======================
+
+@app.get("/api/analyse/classe", response_class=JSONResponse)
+def api_analyse_classe():
+    """Get class analysis data as JSON"""
+    try:
+        data = analyse_par_classe()
+        return JSONResponse(content=data)
+    except Exception as e:
+        return JSONResponse(content={"error": str(e)}, status_code=400)
+
+
+@app.get("/api/analyse/gare", response_class=JSONResponse)
+def api_analyse_gare():
+    """Get station analysis data as JSON"""
+    try:
+        data = analyse_par_gare()
+        return JSONResponse(content=data)
+    except Exception as e:
+        return JSONResponse(content={"error": str(e)}, status_code=400)
+
+
+@app.get("/api/analyse/global", response_class=JSONResponse)
+def api_analyse_global():
+    """Get global analysis data as JSON"""
+    try:
+        data = analyse_global()
+        return JSONResponse(content=data)
+    except Exception as e:
+        return JSONResponse(content={"error": str(e)}, status_code=400)
+
+
+# ====================== ANALYSIS UI ENDPOINTS ======================
 
 @app.get("/analyse/classe", response_class=HTMLResponse)
-def route_classe():  
-    return analyse_par_classe()
+def route_classe():
+    """Display class analysis with interactive UI"""
+    with open(TEMPLATES_DIR / "classe_analyse.html", "r", encoding="utf-8") as f:
+        html = f.read()
+    return HTMLResponse(html)
+
 
 @app.get("/analyse/gare", response_class=HTMLResponse)
 def route_gare():
-    return analyse_par_gare()
+    """Display station analysis with interactive UI"""
+    with open(TEMPLATES_DIR / "gare_analyse.html", "r", encoding="utf-8") as f:
+        html = f.read()
+    return HTMLResponse(html)
+
 
 @app.get("/analyse/global", response_class=HTMLResponse)
 def route_global():
-    return analyse_global()
+    """Display global analysis with interactive UI"""
+    with open(TEMPLATES_DIR / "global_analyse.html", "r", encoding="utf-8") as f:
+        html = f.read()
+    return HTMLResponse(html)
 
 
 @app.get("/class_trends", response_class=JSONResponse)
@@ -140,8 +180,7 @@ def class_trends_dashboard():
         html_content = f.read()
     return HTMLResponse(html_content)
 
-@app.get("/plot/global", response_class=HTMLResponse)
-def plot_global(): return predict_global_reseau_lstm()
+
 
 @app.get("/prevision", response_class=HTMLResponse)
 def prevision_page():

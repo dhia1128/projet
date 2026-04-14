@@ -87,14 +87,132 @@ def plot_top_gares_ca():
 
 def plot_montant_by_vehicle():
     df = get_data()
+    
+    # Calculate statistics for each vehicle class
+    stats = df.groupby('classe_vehicule')['montant_net'].agg([
+        ('count', 'count'),
+        ('mean', 'mean'),
+        ('median', 'median'),
+        ('min', 'min'),
+        ('max', 'max'),
+        ('std', 'std')
+    ]).reset_index()
+    
+    # Create enhanced box plot
     fig = px.box(
         df, 
         x='classe_vehicule', 
         y='montant_net',
+        points='outliers',  # Show outlier points
         title="Distribution des Montants par Classe de Véhicule",
-        labels={'classe_vehicule': 'Classe Véhicule', 'montant_net': 'Montant Net (FCFA)'}
+        labels={
+            'classe_vehicule': 'Classe Véhicule', 
+            'montant_net': 'Montant Net (FCFA)'
+        },
+        color='classe_vehicule',
+        color_discrete_map={
+            'MOTO': '#EF4444',      # Red
+            'VL': '#3B82F6',        # Blue
+            'PL': '#10B981',        # Green
+            'BUS': '#F59E0B'        # Amber
+        }
     )
-    fig.update_layout(height=600)
+    
+    # Add mean marker for each class
+    for idx, row in stats.iterrows():
+        fig.add_scatter(
+            x=[row['classe_vehicule']],
+            y=[row['mean']],
+            mode='markers',
+            marker=dict(size=12, symbol='diamond', color='yellow', 
+                       line=dict(color='black', width=2)),
+            name='Moyenne' if idx == 0 else '',
+            hovertemplate=f"<b>{row['classe_vehicule']}</b><br>Moyenne: {row['mean']:.0f} FCFA<extra></extra>",
+            showlegend=(idx == 0)
+        )
+    
+    # Add annotations with statistics
+    annotations = []
+    vehicle_classes = df['classe_vehicule'].unique()
+    
+    for i, vehicle_class in enumerate(sorted(vehicle_classes)):
+        class_stats = stats[stats['classe_vehicule'] == vehicle_class].iloc[0]
+        
+        annotation_text = (
+            f"<b>{vehicle_class}</b><br>"
+            f"Transactions: {int(class_stats['count'])}<br>"
+            f"Moyenne: {class_stats['mean']:.0f} FCFA<br>"
+            f"Médiane: {class_stats['median']:.0f} FCFA<br>"
+            f"Min-Max: {class_stats['min']:.0f} - {class_stats['max']:.0f} FCFA"
+        )
+        
+        annotations.append(dict(
+            x=vehicle_class,
+            y=class_stats['max'] * 1.15,  # Position above the box
+            text=annotation_text,
+            showarrow=False,
+            bgcolor="rgba(255,255,255,0.8)",
+            bordercolor="#333",
+            borderwidth=1,
+            font=dict(size=9),
+            align="center",
+            xanchor="center"
+        ))
+    
+    # Update layout with enhanced styling
+    fig.update_layout(
+        height=750,
+        showlegend=False,
+        template="plotly_white",
+        hovermode="closest",
+        xaxis=dict(
+            title=dict(text="<b>Classe Véhicule</b>", font=dict(size=12, color="#333")),
+            tickfont=dict(size=11),
+            showgrid=True,
+            gridwidth=1,
+            gridcolor="#E5E7EB"
+        ),
+        yaxis=dict(
+            title=dict(text="<b>Montant Net (FCFA)</b>", font=dict(size=12, color="#333")),
+            tickfont=dict(size=10),
+            showgrid=True,
+            gridwidth=1,
+            gridcolor="#E5E7EB",
+            zeroline=True
+        ),
+        title=dict(
+            text="<b>Distribution des Montants par Classe de Véhicule</b><br>" +
+                 "<sub>Les points jaunes représentent la moyenne | Largeur de la boîte = écart interquartile</sub>",
+            x=0.5,
+            xanchor="center",
+            font=dict(size=14)
+        ),
+        annotations=annotations,
+        margin=dict(t=150, b=100, l=80, r=80)
+    )
+    
+    # Update only the box traces for better visibility (don't update scatter traces)
+    fig.update_traces(
+        selector=dict(type="box"),
+        boxmean=False,  # We're adding mean markers manually
+        marker=dict(size=4, opacity=0.6),
+        line=dict(width=2)
+    )
+    
+    # Add a legend explanation at the bottom
+    fig.add_annotation(
+        text="📊 <b>Légende:</b> La boîte représente 50% des données | Ligne in the boîte = médiane | Points isolés = valeurs aberrantes",
+        xref="paper", yref="paper",
+        x=0.5, y=-0.15,
+        showarrow=False,
+        bgcolor="rgba(229, 231, 235, 0.5)",
+        bordercolor="#999",
+        borderwidth=1,
+        font=dict(size=9),
+        align="center",
+        xanchor="center"
+    )
+    
     return fig.to_html(full_html=False)
 
 def plot_daily_trend():
