@@ -16,6 +16,7 @@ from tensorflow.keras.callbacks import (
 from tensorflow.keras.optimizers import Adam
 import warnings
 warnings.filterwarnings('ignore')
+import joblib as jb 
 
 print(f'TensorFlow : {tf.__version__}')
 print(f'GPU disponible : {len(tf.config.list_physical_devices("GPU")) > 0}')
@@ -44,12 +45,16 @@ values = hourly['nombre_voitures'].values.reshape(-1, 1)
 
 scaler      = MinMaxScaler(feature_range=(0, 1))
 scaled_data = scaler.fit_transform(values)
+jb.dump(scaler, "scaler.pkl")
+print("✅ Scaler sauvegardé : scaler.pkl")
 
-# Paramètres — identiques à ton notebook PyTorch
+
+
+# Paramètres — identiques à ton notebook 
 LOOKBACK     = 168     # 7 jours d'historique
 TRAIN_RATIO  = 0.8
 BATCH_SIZE   = 64
-EPOCHS       = 10      # EarlyStopping arrêtera avant si nécessaire
+EPOCHS       = 20      # EarlyStopping arrêtera avant si nécessaire
 NOISE_STD    = 0.8     # Standard deviation for Gaussian noise
 FUTURE_HOURS = 168     # 7 jours de prévision
 
@@ -183,7 +188,8 @@ ax2.grid(True, alpha=0.3)
 y_pred_scaled = model.predict(X_test, verbose=0)
 y_pred        = scaler.inverse_transform(y_pred_scaled).flatten()
 y_true        = scaler.inverse_transform(y_test).flatten()
-
+jb.dump(scaler, "scaler.pkl")
+print("✅ Scaler sauvegardé : scaler.pkl")
 mae  = mean_absolute_error(y_true, y_pred)
 rmse = np.sqrt(mean_squared_error(y_true, y_pred))
 mape = np.mean(np.abs((y_true - y_pred) / (y_true + 1e-8))) * 100
@@ -210,40 +216,9 @@ plt.tight_layout()
 plt.savefig('lstm_keras_predictions.png', dpi=150, bbox_inches='tight')
 plt.show()
 
-# ── 9. VISUALISATION PRÉVISIONS FUTURES ───────────────────────────────────
-HIST_HOURS = 4 * 7 * 24   # 4 semaines d'historique affiché
+# ── 8. GENERATION DES PRÉVISIONS FUTURES ──────────────────────────────────
 
-plt.figure(figsize=(18, 8))
 
-# Historique réel
-plt.plot(
-    hourly.index[-HIST_HOURS:],
-    hourly['nombre_voitures'].tail(HIST_HOURS),
-    label='Historique réel',
-    color='#2563EB', linewidth=1.5, alpha=0.75
-)
+ 
 
-# Prévisions avec bruit gaussien
-plt.plot(
-    future_dates, future_preds,
-    label=f'Prévision LSTM Keras (bruit gaussien σ={NOISE_STD})',
-    color='#DC2626', linewidth=2, linestyle='--'
-)
-
-# Zone prévision
-plt.axvspan(future_dates[0], future_dates[-1],
-            alpha=0.06, color='#DC2626', label='Zone prévue')
-
-# Ligne de séparation
-plt.axvline(x=last_ts, color='gray', linestyle=':', linewidth=1.5, label='Début prévision')
-
-plt.title(f'Prévision LSTM Keras — {FUTURE_HOURS}h (7 jours) avec bruit gaussien σ={NOISE_STD}',
-          fontweight='bold', fontsize=13)
-plt.xlabel('Date')
-plt.ylabel('Nombre de véhicules par heure')
-plt.legend(loc='upper left')
-plt.grid(True, alpha=0.3)
-plt.tight_layout()
-plt.savefig('lstm_keras_forecast.png', dpi=150, bbox_inches='tight')
-plt.show()
 
