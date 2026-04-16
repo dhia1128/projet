@@ -411,7 +411,7 @@ def root():
                 "GET  /health"             : "System health status",
                 "POST /predict/json"       : "Predictions JSON",
                 "GET  /predict/plot"       : "Plot PNG direct",
-                "POST /predict/full"       : "JSON + plot base64",
+                "GET  /predict/plotly"     : "Interactive Plotly Dashboard",
             },
             "Class Trends": {
                 "GET  /class_trends"       : "Class trends data",
@@ -495,6 +495,15 @@ def predict_plot(future_hours: int = 168, noise_std: float = NOISE_STD):
             "X-Plot-Generation-Time-Seconds": str(result["plot_generation_time_seconds"]),
         }
     )
+
+
+@app.get("/predict/plotly", response_class=HTMLResponse, tags=["Predictions"])
+def predict_plotly():
+    """Serve interactive Plotly prediction dashboard"""
+    _require_ready()
+    with open(TEMPLATES_DIR / "predict_plotly.html", "r", encoding="utf-8") as f:
+        html_content = f.read()
+    return HTMLResponse(html_content)
 
 
 # ════════════════════════════════════════════════════════════════════════════
