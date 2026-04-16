@@ -1,0 +1,28 @@
+{
+  "name": "prophet_gare_epke",
+  "gare": "Epke",
+  "gare_safe": "epke",
+  "model_type": "prophet",
+  "model_path": "models\\prophet_gare_epke.pkl",
+  "future_hours": 168,
+  "noise_std": 0.8,
+  "train_ratio": 0.8,
+  "seasonality_mode": "additive",
+  "changepoint_prior_scale": 0.15,
+  "fourier_orders": {
+    "daily": 10,
+    "weekly": 5,
+    "yearly": 8
+  },
+  "data_start": "2023-01-01 01:00:00",
+  "data_end": "2024-12-31 20:00:00",
+  "n_hours_train": 14032,
+  "y_mean": 1.5,
+  "y_std": 1.695,
+  "y_max": 11.0,
+  "metrics": {
+    "mae": 0.95,
+    "rmse": 1.357,
+    "mape": 2417177280.16
+  }
+}

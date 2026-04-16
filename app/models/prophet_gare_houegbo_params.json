@@ -1,0 +1,28 @@
+{
+  "name": "prophet_gare_houegbo",
+  "gare": "Houegbo",
+  "gare_safe": "houegbo",
+  "model_type": "prophet",
+  "model_path": "models\\prophet_gare_houegbo.pkl",
+  "future_hours": 168,
+  "noise_std": 0.8,
+  "train_ratio": 0.8,
+  "seasonality_mode": "additive",
+  "changepoint_prior_scale": 0.15,
+  "fourier_orders": {
+    "daily": 10,
+    "weekly": 5,
+    "yearly": 8
+  },
+  "data_start": "2023-01-01 01:00:00",
+  "data_end": "2024-12-31 20:00:00",
+  "n_hours_train": 14032,
+  "y_mean": 1.892,
+  "y_std": 2.008,
+  "y_max": 15.0,
+  "metrics": {
+    "mae": 1.057,
+    "rmse": 1.524,
+    "mape": 1759786643.36
+  }
+}
