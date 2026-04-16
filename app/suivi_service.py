@@ -215,25 +215,6 @@ def plot_montant_by_vehicle():
     
     return fig.to_html(full_html=False)
 
-def plot_daily_trend():
-    df = get_data()
-    try:
-        df['date'] = pd.to_datetime(df['date_heure']).dt.date
-    except Exception as e:
-        print(f"Error parsing date_heure: {e}")
-        df['date'] = df['date_heure'].astype(str).str[:10]
-    
-    daily = df.groupby('date')['montant_net'].sum().reset_index()
-    daily = daily.sort_values('date')
-    
-    fig = px.line(
-        daily, x='date', y='montant_net',
-        title="Évolution Journalière du Chiffre d'Affaires",
-        labels={'date': 'Date', 'montant_net': 'CA (FCFA)'},
-        markers=True
-    )
-    fig.update_layout(height=600)
-    return fig.to_html(full_html=False)
 
 
 def plot_monthly_revenue_by_payment():
